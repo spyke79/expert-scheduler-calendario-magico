@@ -1,6 +1,6 @@
 
 import { NavLink } from "react-router-dom";
-import { Calendar, User, School, Book, List } from "lucide-react";
+import { Calendar, User, School, Book, GitBranch } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const Sidebar = () => {
@@ -9,7 +9,7 @@ const Sidebar = () => {
     { name: "Scuole", path: "/schools", icon: <School className="h-5 w-5" /> },
     { name: "Esperti", path: "/experts", icon: <User className="h-5 w-5" /> },
     { name: "Corsi", path: "/courses", icon: <Book className="h-5 w-5" /> },
-    { name: "Progetti", path: "/projects", icon: <List className="h-5 w-5" /> },
+    { name: "Progetti", path: "/projects", icon: <GitBranch className="h-5 w-5" /> },
   ];
 
   return (
