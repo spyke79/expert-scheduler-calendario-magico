@@ -1,10 +1,10 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { GitBranch, Plus, Search } from "lucide-react";
 import MainLayout from "@/components/layout/MainLayout";
+import { ProjectDialog } from "@/components/projects/ProjectDialog";
 
 interface Project {
   id: string;
@@ -16,6 +16,7 @@ interface Project {
 
 const ProjectsPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [showAddDialog, setShowAddDialog] = useState(false);
   const [projects, setProjects] = useState<Project[]>([
     {
       id: "1",
@@ -40,6 +41,11 @@ const ProjectsPage = () => {
     },
   ]);
 
+  const addProject = (newProject: Project) => {
+    setProjects([...projects, newProject]);
+    setShowAddDialog(false);
+  };
+
   const filteredProjects = projects.filter(project =>
     project.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -49,7 +55,7 @@ const ProjectsPage = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">Progetti</h1>
-          <Button>
+          <Button onClick={() => setShowAddDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Nuovo Progetto
           </Button>
@@ -106,6 +112,12 @@ const ProjectsPage = () => {
           </div>
         )}
       </div>
+
+      <ProjectDialog 
+        open={showAddDialog} 
+        onOpenChange={setShowAddDialog} 
+        onSave={addProject}
+      />
     </MainLayout>
   );
 };

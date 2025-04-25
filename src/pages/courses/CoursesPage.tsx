@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Book, Plus, Search, Calendar } from "lucide-react";
 import MainLayout from "@/components/layout/MainLayout";
+import { CourseDialog } from "@/components/courses/CourseDialog";
 
 interface Course {
   id: string;
@@ -30,6 +30,7 @@ interface Course {
 
 const CoursesPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [showAddDialog, setShowAddDialog] = useState(false);
   const [courses, setCourses] = useState<Course[]>([
     {
       id: "1",
@@ -72,6 +73,11 @@ const CoursesPage = () => {
     }
   ]);
 
+  const addCourse = (newCourse: Course) => {
+    setCourses([...courses, newCourse]);
+    setShowAddDialog(false);
+  };
+
   const filteredCourses = courses.filter(course =>
     course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     course.projectName.toLowerCase().includes(searchTerm.toLowerCase())
@@ -82,7 +88,7 @@ const CoursesPage = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">Corsi</h1>
-          <Button>
+          <Button onClick={() => setShowAddDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Nuovo Corso
           </Button>
@@ -173,6 +179,12 @@ const CoursesPage = () => {
             </p>
           </div>
         )}
+
+        <CourseDialog 
+          open={showAddDialog} 
+          onOpenChange={setShowAddDialog} 
+          onSave={addCourse}
+        />
       </div>
     </MainLayout>
   );
