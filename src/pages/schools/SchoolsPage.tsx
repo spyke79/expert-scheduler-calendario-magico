@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { School, Plus, MapPin, Search } from "lucide-react";
 import MainLayout from "@/components/layout/MainLayout";
 import { SchoolDialog } from "@/components/schools/SchoolDialog";
+import { SchoolDetails } from "@/components/schools/SchoolDetails";
 
 interface SchoolLocation {
   name: string;
@@ -30,6 +31,7 @@ interface School {
 const SchoolsPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
   const [schools, setSchools] = useState<School[]>([
     {
       id: "1",
@@ -68,9 +70,33 @@ const SchoolsPage = () => {
     setShowAddDialog(false);
   };
 
+  const updateSchool = (updatedSchool: School) => {
+    setSchools(schools.map(school => 
+      school.id === updatedSchool.id ? updatedSchool : school
+    ));
+    if (selectedSchool?.id === updatedSchool.id) {
+      setSelectedSchool(updatedSchool);
+    }
+  };
+
   const filteredSchools = schools.filter(school => 
     school.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  if (selectedSchool) {
+    return (
+      <MainLayout>
+        <div className="space-y-6">
+          <div className="flex items-center gap-4">
+            <Button variant="outline" onClick={() => setSelectedSchool(null)}>
+              Torna all'elenco
+            </Button>
+          </div>
+          <SchoolDetails school={selectedSchool} onUpdate={updateSchool} />
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -136,7 +162,12 @@ const SchoolsPage = () => {
                       </a>
                     </Button>
                     <div className="w-2"></div>
-                    <Button variant="default" size="sm" className="w-full">
+                    <Button 
+                      variant="default" 
+                      size="sm" 
+                      className="w-full"
+                      onClick={() => setSelectedSchool(school)}
+                    >
                       Dettagli
                     </Button>
                   </div>
