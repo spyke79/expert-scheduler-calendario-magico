@@ -21,7 +21,7 @@ interface ProjectDialogProps {
 }
 
 export function ProjectDialog({ project, open, onOpenChange, onSave }: ProjectDialogProps) {
-  const [formData, setFormData] = useState<Omit<Project, "id" | "totalCourses" | "documents">>({
+  const [formData, setFormData] = useState<Omit<Project, "id" | "totalCourses" | "documents" | "courses">>({
     name: project?.name || "",
     year: project?.year || new Date().getFullYear(),
     type: project?.type || "",
@@ -43,6 +43,7 @@ export function ProjectDialog({ project, open, onOpenChange, onSave }: ProjectDi
       id: project?.id || `project-${Date.now()}`,
       totalCourses: project?.totalCourses || 0,
       documents: project?.documents || [],
+      courses: project?.courses || [],
       ...formData
     };
     

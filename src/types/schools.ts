@@ -14,6 +14,28 @@ export interface ProjectDocument {
   uploadedAt: string;
 }
 
+export interface CourseSession {
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  hours: number;
+}
+
+export interface Course {
+  id: string;
+  title: string;
+  description: string;
+  totalHours: number;
+  expertId: string;
+  expertName: string;
+  tutor: {
+    name: string;
+    phone: string;
+  };
+  sessions: CourseSession[];
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -21,6 +43,7 @@ export interface Project {
   type: string;
   documents: ProjectDocument[];
   totalCourses: number;
+  courses: Course[];
 }
 
 export interface School {
