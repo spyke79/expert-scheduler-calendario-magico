@@ -1,18 +1,12 @@
 
 import { useState } from "react";
-import { format, startOfWeek, addDays, isSameDay } from "date-fns";
+import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import MainLayout from "@/components/layout/MainLayout";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
 import { SessionDialog } from "@/components/courses/SessionDialog";
+import { ExpertSchedule } from "@/components/experts/ExpertSchedule";
 
 interface CourseSession {
   id: string;
@@ -30,15 +24,88 @@ interface CourseSession {
 }
 
 const ExpertCalendar = () => {
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [startDate, setStartDate] = useState<Date>(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [sessionDialogOpen, setSessionDialogOpen] = useState(false);
   const [selectedSession, setSelectedSession] = useState<CourseSession | null>(null);
 
-  // Demo data
-  const sessions: CourseSession[] = [
+  // Demo data - in a real app this would come from API or context
+  const expertId = "exp-1"; // Current logged-in expert
+  const courses = [
     {
-      id: "1",
+      id: "c1",
+      title: "Programmazione Web Base",
+      description: "Introduzione alla programmazione web",
+      totalHours: 30,
+      expertId: "exp-1",
+      expertName: "Mario Rossi",
+      tutor: {
+        name: "Marco Verdi",
+        phone: "333-2223333"
+      },
+      sessions: [
+        {
+          id: "s1",
+          date: "2025-04-28",
+          startTime: "15:00",
+          endTime: "18:00",
+          hours: 3
+        },
+        {
+          id: "s2",
+          date: "2025-04-30",
+          startTime: "15:00",
+          endTime: "18:00",
+          hours: 3
+        }
+      ]
+    },
+    {
+      id: "c2",
+      title: "Matematica Avanzata",
+      description: "Corso di matematica avanzata",
+      totalHours: 20,
+      expertId: "exp-1",
+      expertName: "Mario Rossi",
+      tutor: {
+        name: "Luisa Neri",
+        phone: "333-4445555"
+      },
+      sessions: [
+        {
+          id: "s3",
+          date: "2025-04-29",
+          startTime: "14:30",
+          endTime: "16:30",
+          hours: 2
+        }
+      ]
+    },
+    {
+      id: "c3",
+      title: "Inglese Commerciale",
+      description: "Business English",
+      totalHours: 25,
+      expertId: "exp-2", // Different expert
+      expertName: "Giovanna Bianchi",
+      tutor: {
+        name: "Giulia Rossi",
+        phone: "333-6667777"
+      },
+      sessions: [
+        {
+          id: "s4",
+          date: "2025-04-30",
+          startTime: "09:00",
+          endTime: "12:00",
+          hours: 3
+        }
+      ]
+    }
+  ];
+
+  // Demo session data mapping
+  const sessionMap: Record<string, CourseSession> = {
+    "s1": {
+      id: "s1",
       courseId: "c1",
       courseName: "Programmazione Web Base",
       schoolName: "ITIS Galileo Galilei",
@@ -51,8 +118,22 @@ const ExpertCalendar = () => {
       startTime: "15:00",
       endTime: "18:00"
     },
-    {
-      id: "2",
+    "s2": {
+      id: "s2",
+      courseId: "c1",
+      courseName: "Programmazione Web Base",
+      schoolName: "ITIS Galileo Galilei",
+      locationName: "Sede Centrale",
+      locationAddress: "Via della Scienza 123, Roma",
+      mapLink: "https://maps.google.com/?q=Roma+Via+della+Scienza",
+      tutorName: "Marco Verdi",
+      tutorPhone: "333-2223333",
+      date: new Date(2025, 3, 30),
+      startTime: "15:00",
+      endTime: "18:00"
+    },
+    "s3": {
+      id: "s3",
       courseId: "c2",
       courseName: "Matematica Avanzata",
       schoolName: "Liceo Scientifico Einstein",
@@ -64,92 +145,57 @@ const ExpertCalendar = () => {
       date: new Date(2025, 3, 29),
       startTime: "14:30",
       endTime: "16:30"
-    },
-    {
-      id: "3",
-      courseId: "c3",
-      courseName: "Inglese Commerciale",
-      schoolName: "ITC Marco Polo",
-      locationName: "Aula 3B",
-      locationAddress: "Via dei Mercanti 45, Firenze",
-      mapLink: "https://maps.google.com/?q=Firenze+Via+dei+Mercanti",
-      tutorName: "Giulia Rossi",
-      tutorPhone: "333-6667777",
-      date: new Date(2025, 3, 30),
-      startTime: "09:00",
-      endTime: "12:00"
-    }
-  ];
-
-  const daysOfWeek = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
-
-  const sessionsForDay = (date: Date) => {
-    return sessions.filter(session => isSameDay(session.date, date));
-  };
-
-  const totalSessions = sessions.length;
-  const totalEarnings = 1250; // Example calculation
-
-  const handlePrevWeek = () => {
-    setStartDate(addDays(startDate, -7));
-  };
-
-  const handleNextWeek = () => {
-    setStartDate(addDays(startDate, 7));
-  };
-
-  const handleSessionClick = (session: CourseSession) => {
-    setSelectedSession(session);
-    setSessionDialogOpen(true);
-  };
-
-  const handleDateSelect = (date: Date | undefined) => {
-    if (date) {
-      setSelectedDate(date);
     }
   };
+
+  const handleViewSession = (courseId: string, sessionId: string) => {
+    const session = sessionMap[sessionId];
+    if (session) {
+      setSelectedSession(session);
+      setSessionDialogOpen(true);
+    }
+  };
+
+  // Calculate statistics
+  const expertCourses = courses.filter(course => course.expertId === expertId);
+  const totalSessions = expertCourses.reduce(
+    (count, course) => count + course.sessions.length, 
+    0
+  );
+  
+  const totalHours = expertCourses.reduce(
+    (hours, course) => hours + course.sessions.reduce(
+      (sessionHours, session) => sessionHours + session.hours, 
+      0
+    ), 
+    0
+  );
+  
+  // Example calculation for earnings (€25 per hour)
+  const hourlyRate = 25;
+  const totalEarnings = totalHours * hourlyRate;
 
   return (
     <MainLayout>
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <h1 className="text-3xl font-bold">Il Mio Calendario</h1>
-          
-          <div className="flex items-center gap-2">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="flex items-center gap-2">
-                  <CalendarIcon className="h-4 w-4" />
-                  <span>Seleziona Data</span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="end">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={handleDateSelect}
-                  initialFocus
-                  className="p-3 pointer-events-auto"
-                />
-              </PopoverContent>
-            </Popover>
-            
-            <Button variant="outline" onClick={handlePrevWeek}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            
-            <Button variant="outline" onClick={handleNextWeek}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-6 flex flex-col items-center justify-center">
               <CalendarIcon className="h-8 w-8 text-primary mb-2" />
-              <p className="text-sm text-muted-foreground">Totale Impegni</p>
+              <p className="text-sm text-muted-foreground">Totale Incontri</p>
               <p className="text-3xl font-bold">{totalSessions}</p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-6 flex flex-col items-center justify-center">
+              <CalendarIcon className="h-8 w-8 text-primary mb-2" />
+              <p className="text-sm text-muted-foreground">Totale Ore</p>
+              <p className="text-3xl font-bold">{totalHours}</p>
             </CardContent>
           </Card>
           
@@ -162,46 +208,11 @@ const ExpertCalendar = () => {
           </Card>
         </div>
         
-        <Card>
-          <CardHeader>
-            <CardTitle>Pianificazione Settimanale</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-7 gap-2 mb-4">
-              {daysOfWeek.map((day, index) => (
-                <div
-                  key={index}
-                  className="text-center"
-                >
-                  <p className="text-sm font-medium">
-                    {format(day, "EEE", { locale: it })}
-                  </p>
-                  <p className="text-lg">{format(day, "d")}</p>
-                </div>
-              ))}
-            </div>
-            
-            <div className="grid grid-cols-7 gap-2 h-[500px]">
-              {daysOfWeek.map((day, dayIndex) => (
-                <div key={dayIndex} className="border rounded-md overflow-auto p-2 h-full">
-                  {sessionsForDay(day).map((session, sessionIndex) => (
-                    <div
-                      key={sessionIndex}
-                      className="mb-2 p-2 bg-primary/10 rounded cursor-pointer hover:bg-primary/20"
-                      onClick={() => handleSessionClick(session)}
-                    >
-                      <p className="font-medium text-sm truncate">{session.courseName}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {session.startTime} - {session.endTime}
-                      </p>
-                      <p className="text-xs truncate">{session.schoolName}</p>
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <ExpertSchedule 
+          expertId={expertId}
+          courses={courses}
+          onViewSessionDetails={handleViewSession}
+        />
       </div>
       
       {selectedSession && (

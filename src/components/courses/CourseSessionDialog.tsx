@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,32 +12,96 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { CourseSession } from "@/types/schools";
+import { CourseSession, Course } from "@/types/schools";
+import { hasExpertConflict, getRemainingHours } from "@/utils/courseCalendar";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { CalendarIcon, AlertTriangle, Clock } from "lucide-react";
 
 interface CourseSessionDialogProps {
   session?: CourseSession;
+  course: Course;
+  allCourses: Course[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (session: CourseSession) => void;
 }
 
-export function CourseSessionDialog({ session, open, onOpenChange, onSave }: CourseSessionDialogProps) {
+export function CourseSessionDialog({ 
+  session, 
+  course, 
+  allCourses,
+  open, 
+  onOpenChange, 
+  onSave 
+}: CourseSessionDialogProps) {
   const [formData, setFormData] = useState<Omit<CourseSession, "id">>({
     date: session?.date || "",
     startTime: session?.startTime || "",
     endTime: session?.endTime || "",
     hours: session?.hours || 0,
   });
+  
+  const [hasConflict, setHasConflict] = useState<boolean>(false);
+  const [conflictMessage, setConflictMessage] = useState<string>("");
+  const remainingHours = getRemainingHours(course);
+  const isEditing = Boolean(session);
+  
+  // Calculate maximum available hours
+  const availableHours = isEditing 
+    ? remainingHours + session.hours 
+    : remainingHours;
 
   const handleInputChange = (field: string, value: any) => {
-    setFormData({ ...formData, [field]: value });
+    const updatedFormData = { ...formData, [field]: value };
+    setFormData(updatedFormData);
+    
+    // Check for conflicts whenever date or time changes
+    if (field === 'date' || field === 'startTime' || field === 'endTime') {
+      checkForConflicts(updatedFormData);
+    }
   };
+
+  const checkForConflicts = (data: Omit<CourseSession, "id">) => {
+    // Only check if we have all the required fields
+    if (data.date && data.startTime && data.endTime) {
+      const conflict = hasExpertConflict(
+        data,
+        course.expertId,
+        allCourses,
+        course.id
+      );
+      
+      setHasConflict(conflict);
+      setConflictMessage(
+        conflict 
+          ? "Conflitto: l'esperto ha già un altro corso programmato in questo orario" 
+          : ""
+      );
+    }
+  };
+
+  // Initial conflict check when dialog opens
+  useEffect(() => {
+    if (open && formData.date && formData.startTime && formData.endTime) {
+      checkForConflicts(formData);
+    }
+  }, [open]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.date || !formData.startTime || !formData.endTime || !formData.hours) {
+    if (!formData.date || !formData.startTime || !formData.endTime || formData.hours <= 0) {
       toast.error("Compila tutti i campi obbligatori");
+      return;
+    }
+    
+    if (hasConflict) {
+      toast.error("Impossibile programmare: l'esperto ha un conflitto di orario");
+      return;
+    }
+    
+    if (formData.hours > availableHours) {
+      toast.error(`Non puoi assegnare più di ${availableHours} ore disponibili`);
       return;
     }
     
@@ -58,11 +122,23 @@ export function CourseSessionDialog({ session, open, onOpenChange, onSave }: Cou
           <DialogHeader>
             <DialogTitle>{session ? "Modifica Incontro" : "Nuovo Incontro"}</DialogTitle>
             <DialogDescription>
-              Inserisci i dettagli dell'incontro
+              Inserisci i dettagli dell'incontro per il corso "{course.title}"
             </DialogDescription>
           </DialogHeader>
           
           <div className="grid gap-4 py-4">
+            <div className="flex items-center gap-2 rounded-md bg-muted/50 p-3">
+              <Clock className="h-5 w-5 text-primary" />
+              <div>
+                <p className="text-sm">
+                  <span className="font-medium">Ore corso:</span> {course.totalHours}
+                </p>
+                <p className="text-sm">
+                  <span className="font-medium">Ore rimanenti:</span> {availableHours}
+                </p>
+              </div>
+            </div>
+            
             <div className="space-y-2">
               <Label htmlFor="date">Data *</Label>
               <Input
@@ -100,23 +176,47 @@ export function CourseSessionDialog({ session, open, onOpenChange, onSave }: Cou
             
             <div className="space-y-2">
               <Label htmlFor="hours">Ore *</Label>
-              <Input
-                id="hours"
-                type="number"
-                value={formData.hours}
-                onChange={(e) => handleInputChange("hours", Number(e.target.value))}
-                min="1"
-                step="0.5"
-                required
-              />
+              <div className="flex items-center gap-2">
+                <Input
+                  id="hours"
+                  type="number"
+                  value={formData.hours}
+                  onChange={(e) => handleInputChange("hours", Number(e.target.value))}
+                  min="0.5"
+                  max={availableHours}
+                  step="0.5"
+                  required
+                  className={formData.hours > availableHours ? "border-red-500" : ""}
+                />
+                <span className="text-sm text-muted-foreground whitespace-nowrap">
+                  Max: {availableHours}h
+                </span>
+              </div>
+              {formData.hours > availableHours && (
+                <p className="text-sm text-red-500">
+                  Ore eccedenti il totale disponibile
+                </p>
+              )}
             </div>
+            
+            {hasConflict && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  {conflictMessage}
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
           
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Annulla
             </Button>
-            <Button type="submit">
+            <Button 
+              type="submit" 
+              disabled={hasConflict || formData.hours > availableHours}
+            >
               {session ? "Aggiorna" : "Aggiungi"} Incontro
             </Button>
           </DialogFooter>
