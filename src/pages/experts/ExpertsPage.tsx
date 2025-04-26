@@ -1,12 +1,12 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { User, Plus, Search, Mail, Phone } from "lucide-react";
+import { User, Plus, Search, Mail, Phone, Eye } from "lucide-react";
 import MainLayout from "@/components/layout/MainLayout";
 import { ExpertDialog } from "@/components/experts/ExpertDialog";
+import { ExpertDetails } from "@/components/experts/ExpertDetails";
 
 interface Expert {
   id: string;
@@ -23,6 +23,7 @@ const ExpertsPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [subjectFilter, setSubjectFilter] = useState<string>("");
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [selectedExpert, setSelectedExpert] = useState<Expert | null>(null);
   const [experts, setExperts] = useState<Expert[]>([
     {
       id: "1",
@@ -63,11 +64,29 @@ const ExpertsPage = () => {
     setShowAddDialog(false);
   };
 
+  const handleUpdateExpert = (updatedExpert: Expert) => {
+    setExperts(experts.map(expert => 
+      expert.id === updatedExpert.id ? updatedExpert : expert
+    ));
+    setSelectedExpert(updatedExpert);
+  };
+
   const filteredExperts = experts.filter(expert => {
     const nameMatches = `${expert.firstName} ${expert.lastName}`.toLowerCase().includes(searchTerm.toLowerCase());
     const subjectMatches = subjectFilter === "" || expert.subjects.includes(subjectFilter);
     return nameMatches && subjectMatches;
   });
+
+  if (selectedExpert) {
+    return (
+      <MainLayout>
+        <ExpertDetails 
+          expert={selectedExpert} 
+          onUpdate={handleUpdateExpert}
+        />
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -147,7 +166,11 @@ const ExpertsPage = () => {
                   </div>
                 </div>
                 
-                <Button className="w-full mt-4">
+                <Button 
+                  className="w-full mt-4"
+                  onClick={() => setSelectedExpert(expert)}
+                >
+                  <Eye className="h-4 w-4 mr-2" />
                   Visualizza Dettagli
                 </Button>
               </CardContent>
