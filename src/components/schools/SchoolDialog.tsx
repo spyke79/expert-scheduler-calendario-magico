@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,7 @@ export function SchoolDialog({ school, open, onOpenChange, onSave }: SchoolDialo
     managerPhone: school?.managerPhone || "",
     mapLink: school?.mapLink || "",
     secondaryLocations: school?.secondaryLocations || [],
+    projects: school?.projects || []
   });
 
   const handleInputChange = (field: string, value: string) => {
@@ -78,8 +80,7 @@ export function SchoolDialog({ school, open, onOpenChange, onSave }: SchoolDialo
     
     const newSchool: School = {
       id: school?.id || `school-${Date.now()}`,
-      ...formData,
-      projects: school?.projects || []
+      ...formData
     };
     
     onSave(newSchool);
