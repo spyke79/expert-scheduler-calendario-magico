@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +15,12 @@ interface SchoolLocation {
   mapLink?: string;
 }
 
+interface Project {
+  id: string;
+  name: string;
+  description: string;
+}
+
 interface School {
   id: string;
   name: string;
@@ -26,6 +31,7 @@ interface School {
   managerPhone: string;
   mapLink?: string;
   secondaryLocations: SchoolLocation[];
+  projects: Project[];
 }
 
 const SchoolsPage = () => {
@@ -50,7 +56,8 @@ const SchoolsPage = () => {
           managerPhone: "333-2223333",
           mapLink: "https://maps.google.com/?q=Roma+Via+dei+Pini"
         }
-      ]
+      ],
+      projects: []
     },
     {
       id: "2",
@@ -61,7 +68,8 @@ const SchoolsPage = () => {
       managerName: "Dott. Roberto Bianchi",
       managerPhone: "333-6667777",
       mapLink: "https://maps.google.com/?q=Milano",
-      secondaryLocations: []
+      secondaryLocations: [],
+      projects: []
     }
   ]);
 
