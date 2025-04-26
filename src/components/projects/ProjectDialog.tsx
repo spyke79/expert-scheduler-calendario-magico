@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,14 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-
-interface Project {
-  id: string;
-  name: string;
-  year: number;
-  type: string;
-  totalCourses: number;
-}
+import { Project } from "@/types/schools";
 
 interface ProjectDialogProps {
   project?: Project;
@@ -29,7 +21,7 @@ interface ProjectDialogProps {
 }
 
 export function ProjectDialog({ project, open, onOpenChange, onSave }: ProjectDialogProps) {
-  const [formData, setFormData] = useState<Omit<Project, "id" | "totalCourses">>({
+  const [formData, setFormData] = useState<Omit<Project, "id" | "totalCourses" | "documents">>({
     name: project?.name || "",
     year: project?.year || new Date().getFullYear(),
     type: project?.type || "",
@@ -50,6 +42,7 @@ export function ProjectDialog({ project, open, onOpenChange, onSave }: ProjectDi
     const newProject: Project = {
       id: project?.id || `project-${Date.now()}`,
       totalCourses: project?.totalCourses || 0,
+      documents: project?.documents || [],
       ...formData
     };
     

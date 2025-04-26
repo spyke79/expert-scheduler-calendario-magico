@@ -12,43 +12,7 @@ import { SchoolDialog } from "./SchoolDialog";
 import { ProjectDialog } from "@/components/projects/ProjectDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-
-interface SchoolLocation {
-  name: string;
-  address: string;
-  managerName: string;
-  managerPhone: string;
-  mapLink?: string;
-}
-
-interface ProjectDocument {
-  id: string;
-  name: string;
-  url: string;
-  uploadedAt: string;
-}
-
-interface Project {
-  id: string;
-  name: string;
-  year: number;
-  type: string;
-  documents: ProjectDocument[];
-  totalCourses: number;
-}
-
-interface School {
-  id: string;
-  name: string;
-  address: string;
-  principalName: string;
-  principalPhone: string;
-  managerName: string;
-  managerPhone: string;
-  mapLink?: string;
-  secondaryLocations: SchoolLocation[];
-  projects: Project[];
-}
+import { School, Project, ProjectDocument } from "@/types/schools";
 
 interface SchoolDetailsProps {
   school: School;

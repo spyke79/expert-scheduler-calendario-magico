@@ -2,37 +2,11 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { School, Plus, MapPin, Search } from "lucide-react";
+import { School as SchoolIcon, Plus, MapPin, Search } from "lucide-react";
 import MainLayout from "@/components/layout/MainLayout";
 import { SchoolDialog } from "@/components/schools/SchoolDialog";
 import { SchoolDetails } from "@/components/schools/SchoolDetails";
-
-interface SchoolLocation {
-  name: string;
-  address: string;
-  managerName: string;
-  managerPhone: string;
-  mapLink?: string;
-}
-
-interface Project {
-  id: string;
-  name: string;
-  description: string;
-}
-
-interface School {
-  id: string;
-  name: string;
-  address: string;
-  principalName: string;
-  principalPhone: string;
-  managerName: string;
-  managerPhone: string;
-  mapLink?: string;
-  secondaryLocations: SchoolLocation[];
-  projects: Project[];
-}
+import { School, SchoolLocation, Project } from "@/types/schools";
 
 const SchoolsPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -140,7 +114,7 @@ const SchoolsPage = () => {
                         <span>{school.address}</span>
                       </div>
                     </div>
-                    <School className="h-6 w-6 text-primary" />
+                    <SchoolIcon className="h-6 w-6 text-primary" />
                   </div>
                   
                   <div className="mt-4 space-y-2">
@@ -187,7 +161,7 @@ const SchoolsPage = () => {
 
         {filteredSchools.length === 0 && (
           <div className="text-center p-8">
-            <School className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <SchoolIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-medium">Nessuna scuola trovata</h3>
             <p className="text-muted-foreground mt-1">
               Prova a modificare i filtri o aggiungi una nuova scuola

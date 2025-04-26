@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,26 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-
-interface SchoolLocation {
-  name: string;
-  address: string;
-  managerName: string;
-  managerPhone: string;
-  mapLink?: string;
-}
-
-interface School {
-  id: string;
-  name: string;
-  address: string;
-  principalName: string;
-  principalPhone: string;
-  managerName: string;
-  managerPhone: string;
-  mapLink?: string;
-  secondaryLocations: SchoolLocation[];
-}
+import { School, SchoolLocation } from "@/types/schools";
 
 interface SchoolDialogProps {
   school?: School;
@@ -98,7 +78,8 @@ export function SchoolDialog({ school, open, onOpenChange, onSave }: SchoolDialo
     
     const newSchool: School = {
       id: school?.id || `school-${Date.now()}`,
-      ...formData
+      ...formData,
+      projects: school?.projects || []
     };
     
     onSave(newSchool);

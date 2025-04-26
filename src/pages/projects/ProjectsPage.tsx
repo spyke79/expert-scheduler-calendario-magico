@@ -5,14 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { GitBranch, Plus, Search } from "lucide-react";
 import MainLayout from "@/components/layout/MainLayout";
 import { ProjectDialog } from "@/components/projects/ProjectDialog";
-
-interface Project {
-  id: string;
-  name: string;
-  year: number;
-  type: string;
-  totalCourses: number;
-}
+import { Project } from "@/types/schools";
 
 const ProjectsPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -24,6 +17,7 @@ const ProjectsPage = () => {
       year: 2024,
       type: "PNRR",
       totalCourses: 5,
+      documents: []
     },
     {
       id: "2",
@@ -31,6 +25,7 @@ const ProjectsPage = () => {
       year: 2024,
       type: "Regionale",
       totalCourses: 3,
+      documents: []
     },
     {
       id: "3",
@@ -38,6 +33,7 @@ const ProjectsPage = () => {
       year: 2024,
       type: "PNRR",
       totalCourses: 7,
+      documents: []
     },
   ]);
 
