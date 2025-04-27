@@ -13,6 +13,7 @@ import SchoolsPage from "./pages/schools/SchoolsPage";
 import ExpertsPage from "./pages/experts/ExpertsPage";
 import ExpertCalendar from "./pages/experts/ExpertCalendar";
 import CoursesPage from "./pages/courses/CoursesPage";
+import CourseCalendarPage from "./pages/courses/CourseCalendarPage";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,7 @@ const App = () => (
           <Route path="/experts" element={<ExpertsPage />} />
           <Route path="/expert-dashboard" element={<ExpertCalendar />} />
           <Route path="/courses" element={<CoursesPage />} />
+          <Route path="/courses/:id/calendar" element={<CourseCalendarPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
