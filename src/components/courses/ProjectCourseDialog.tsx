@@ -34,6 +34,9 @@ export function ProjectCourseDialog({ course, experts, open, onOpenChange, onSav
   const [formData, setFormData] = useState<Omit<Course, "id" | "sessions">>({
     title: course?.title || "",
     description: course?.description || "",
+    projectName: course?.projectName || "",
+    schoolName: course?.schoolName || "",
+    location: course?.location || "",
     totalHours: course?.totalHours || 0,
     expertId: course?.expertId || "",
     expertName: course?.expertName || "",
@@ -102,6 +105,39 @@ export function ProjectCourseDialog({ course, experts, open, onOpenChange, onSav
                 value={formData.description}
                 onChange={(e) => handleInputChange("description", e.target.value)}
                 placeholder="Descrizione del corso"
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="schoolName">Nome Scuola *</Label>
+              <Input
+                id="schoolName"
+                value={formData.schoolName}
+                onChange={(e) => handleInputChange("schoolName", e.target.value)}
+                placeholder="Nome della scuola"
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="projectName">Nome Progetto *</Label>
+              <Input
+                id="projectName"
+                value={formData.projectName}
+                onChange={(e) => handleInputChange("projectName", e.target.value)}
+                placeholder="Nome del progetto"
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="location">Sede *</Label>
+              <Input
+                id="location"
+                value={formData.location}
+                onChange={(e) => handleInputChange("location", e.target.value)}
+                placeholder="Sede del corso"
                 required
               />
             </div>
