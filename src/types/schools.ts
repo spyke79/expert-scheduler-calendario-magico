@@ -26,6 +26,11 @@ export interface Course {
   id: string;
   title: string;
   description: string;
+  projectId?: string;
+  projectName: string;
+  schoolId?: string;
+  schoolName: string;
+  location: string;
   totalHours: number;
   expertId: string;
   expertName: string;
