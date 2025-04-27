@@ -192,7 +192,7 @@ export function CourseDialog({ course, experts, open, onOpenChange, onSave }: Co
                     <SelectValue placeholder="Seleziona una scuola" />
                   </SelectTrigger>
                   <SelectContent>
-                    {mockSchools.map((school) => (
+                    {mockSchools && mockSchools.map((school) => (
                       <SelectItem key={school.id} value={school.id}>
                         {school.name}
                       </SelectItem>
@@ -214,7 +214,7 @@ export function CourseDialog({ course, experts, open, onOpenChange, onSave }: Co
                         <SelectValue placeholder="Seleziona un progetto" />
                       </SelectTrigger>
                       <SelectContent>
-                        {selectedSchool.projects.map((project) => (
+                        {selectedSchool.projects && selectedSchool.projects.map((project) => (
                           <SelectItem key={project.id} value={project.id}>
                             {project.name}
                           </SelectItem>
@@ -237,7 +237,7 @@ export function CourseDialog({ course, experts, open, onOpenChange, onSave }: Co
                         <SelectItem value={selectedSchool.address}>
                           Sede Principale - {selectedSchool.address}
                         </SelectItem>
-                        {selectedSchool.secondaryLocations.map((location, index) => (
+                        {selectedSchool.secondaryLocations && selectedSchool.secondaryLocations.map((location, index) => (
                           <SelectItem key={index} value={location.address}>
                             {location.name} - {location.address}
                           </SelectItem>
@@ -272,7 +272,7 @@ export function CourseDialog({ course, experts, open, onOpenChange, onSave }: Co
                       <SelectValue placeholder="Seleziona un esperto" />
                     </SelectTrigger>
                     <SelectContent>
-                      {experts.map((expert) => (
+                      {experts && experts.map((expert) => (
                         <SelectItem key={expert.id} value={expert.id}>
                           {expert.firstName} {expert.lastName}
                         </SelectItem>

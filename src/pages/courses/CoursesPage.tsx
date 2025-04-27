@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,36 +7,30 @@ import { Badge } from "@/components/ui/badge";
 import { Book, Plus, Search, Calendar } from "lucide-react";
 import MainLayout from "@/components/layout/MainLayout";
 import { CourseDialog } from "@/components/courses/CourseDialog";
+import { Course } from "@/types/schools";
 
-interface Course {
-  id: string;
-  title: string;
-  projectName: string;
-  schoolName: string;
-  location: string;
+interface CourseWithDates extends Course {
   startDate: string;
   endDate: string;
-  totalHours: number;
   remainingHours: number;
   hourlyRate: number;
   experts: {
     name: string;
     hourlyRate: number;
   }[];
-  tutor: {
-    name: string;
-    phone: string;
-  };
 }
 
 const CoursesPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [courses, setCourses] = useState<Course[]>([
+  const [courses, setCourses] = useState<CourseWithDates[]>([
     {
       id: "1",
       title: "Programmazione Web Base",
+      description: "Corso di base di programmazione web",
+      projectId: "p1",
       projectName: "PNRR DM65",
+      schoolId: "1",
       schoolName: "ITIS Galileo Galilei",
       location: "Sede Principale",
       startDate: "2024-03-01",
@@ -43,6 +38,8 @@ const CoursesPage = () => {
       totalHours: 30,
       remainingHours: 20,
       hourlyRate: 70,
+      expertId: "exp1",
+      expertName: "Mario Rossi",
       experts: [
         { name: "Mario Rossi", hourlyRate: 50 },
         { name: "Laura Bianchi", hourlyRate: 50 }
@@ -50,12 +47,16 @@ const CoursesPage = () => {
       tutor: {
         name: "Giuseppe Verdi",
         phone: "333-5555555"
-      }
+      },
+      sessions: []
     },
     {
       id: "2",
       title: "Inglese Avanzato",
+      description: "Corso avanzato di inglese",
+      projectId: "p2",
       projectName: "Scuola Viva",
+      schoolId: "1",
       schoolName: "Liceo Scientifico Einstein",
       location: "Sede Centrale",
       startDate: "2024-04-01",
@@ -63,18 +64,40 @@ const CoursesPage = () => {
       totalHours: 40,
       remainingHours: 40,
       hourlyRate: 60,
+      expertId: "exp2",
+      expertName: "Maria Brown",
       experts: [
         { name: "Maria Brown", hourlyRate: 45 }
       ],
       tutor: {
         name: "Anna Neri",
         phone: "333-4444444"
-      }
+      },
+      sessions: []
     }
   ]);
 
+  // Mock experts for the CourseDialog
+  const experts = [
+    { id: "exp1", firstName: "Mario", lastName: "Rossi" },
+    { id: "exp2", firstName: "Maria", lastName: "Brown" },
+    { id: "exp3", firstName: "Laura", lastName: "Bianchi" }
+  ];
+
   const addCourse = (newCourse: Course) => {
-    setCourses([...courses, newCourse]);
+    // Convert the standard Course to CourseWithDates
+    const courseWithDates: CourseWithDates = {
+      ...newCourse,
+      startDate: new Date().toISOString().split('T')[0], // Today as default start date
+      endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // +90 days as default end date
+      remainingHours: newCourse.totalHours,
+      hourlyRate: 60, // Default hourly rate
+      experts: [
+        { name: newCourse.expertName, hourlyRate: 60 }
+      ]
+    };
+    
+    setCourses([...courses, courseWithDates]);
     setShowAddDialog(false);
   };
 
@@ -182,7 +205,8 @@ const CoursesPage = () => {
 
         <CourseDialog 
           open={showAddDialog} 
-          onOpenChange={setShowAddDialog} 
+          onOpenChange={setShowAddDialog}
+          experts={experts}
           onSave={addCourse}
         />
       </div>
