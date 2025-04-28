@@ -1,51 +1,50 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
 import { CourseCalendar } from "@/components/courses/CourseCalendar";
 import { CourseSessionDialog } from "@/components/courses/CourseSessionDialog";
 import { toast } from "sonner";
-import { CourseSession } from "@/types/schools";
+import { CourseSession, Course } from "@/types/schools";
+import DatabaseService from "@/services/database";
 
 const CourseCalendarPage = () => {
   const { id } = useParams<{ id: string }>();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedSession, setSelectedSession] = useState<CourseSession | undefined>(undefined);
+  const [course, setCourse] = useState<Course | null>(null);
+  const [allCourses, setAllCourses] = useState<Course[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
-  // Mock data - in a real app, these would come from API calls
-  const course = {
-    id: id || "",
-    title: "Corso di Esempio",
-    description: "Descrizione del corso di esempio",
-    projectName: "Progetto Demo",
-    schoolName: "Scuola Demo",
-    location: "Sede Principale",
-    totalHours: 30,
-    expertId: "exp1",
-    expertName: "Mario Rossi",
-    tutor: {
-      name: "Luisa Bianchi",
-      phone: "+39 123 456 7890"
-    },
-    sessions: [
-      {
-        id: "session1",
-        date: "2025-05-15",
-        startTime: "14:30",
-        endTime: "17:30",
-        hours: 3
-      },
-      {
-        id: "session2",
-        date: "2025-05-22",
-        startTime: "14:30",
-        endTime: "17:30",
-        hours: 3
+  useEffect(() => {
+    const loadData = async () => {
+      if (!id) return;
+      
+      try {
+        setIsLoading(true);
+        const db = DatabaseService.getInstance();
+        
+        // Carica tutti i corsi
+        const coursesData = await db.getCourses();
+        setAllCourses(coursesData);
+        
+        // Trova il corso specifico
+        const currentCourse = coursesData.find(c => c.id === id);
+        if (currentCourse) {
+          setCourse(currentCourse);
+        } else {
+          toast.error("Corso non trovato");
+        }
+      } catch (error) {
+        console.error("Errore durante il caricamento dei dati:", error);
+        toast.error("Errore durante il caricamento dei dati");
+      } finally {
+        setIsLoading(false);
       }
-    ]
-  };
+    };
 
-  const allCourses = [course];
+    loadData();
+  }, [id]);
 
   const handleAddSession = () => {
     setSelectedSession(undefined);
@@ -57,15 +56,98 @@ const CourseCalendarPage = () => {
     setIsDialogOpen(true);
   };
 
-  const handleDeleteSession = (sessionId: string) => {
-    toast.success("Incontro eliminato con successo");
-    // In a real app, we would make an API call to delete the session
+  const handleDeleteSession = async (sessionId: string) => {
+    if (!course) return;
+    
+    try {
+      const db = DatabaseService.getInstance();
+      await db.deleteCourseSession(sessionId, course.id);
+      
+      // Aggiorniamo il corso locale
+      const updatedCourse = {
+        ...course,
+        sessions: course.sessions.filter(s => s.id !== sessionId)
+      };
+      setCourse(updatedCourse);
+      
+      // Aggiorniamo anche allCourses
+      setAllCourses(allCourses.map(c => 
+        c.id === course.id ? updatedCourse : c
+      ));
+      
+      toast.success("Incontro eliminato con successo");
+    } catch (error) {
+      console.error("Errore durante l'eliminazione della sessione:", error);
+      toast.error("Errore durante l'eliminazione della sessione");
+    }
   };
 
-  const handleSaveSession = (session: CourseSession) => {
-    // In a real app, we would make an API call to save the session
-    toast.success("Incontro salvato con successo");
+  const handleSaveSession = async (session: CourseSession) => {
+    if (!course) return;
+    
+    try {
+      const db = DatabaseService.getInstance();
+      let updatedSession;
+      
+      if (selectedSession) {
+        // Aggiorna sessione esistente
+        updatedSession = await db.updateCourseSession(session, course.id);
+        
+        // Aggiorna il corso locale
+        const updatedCourse = {
+          ...course,
+          sessions: course.sessions.map(s => s.id === session.id ? updatedSession : s)
+        };
+        setCourse(updatedCourse);
+        
+        // Aggiorna anche allCourses
+        setAllCourses(allCourses.map(c => 
+          c.id === course.id ? updatedCourse : c
+        ));
+      } else {
+        // Aggiunge nuova sessione
+        updatedSession = await db.addCourseSession(course.id, session);
+        
+        // Aggiorna il corso locale
+        const updatedCourse = {
+          ...course,
+          sessions: [...course.sessions, updatedSession]
+        };
+        setCourse(updatedCourse);
+        
+        // Aggiorna anche allCourses
+        setAllCourses(allCourses.map(c => 
+          c.id === course.id ? updatedCourse : c
+        ));
+      }
+      
+      toast.success("Incontro salvato con successo");
+      setIsDialogOpen(false);
+    } catch (error) {
+      console.error("Errore durante il salvataggio della sessione:", error);
+      toast.error("Errore durante il salvataggio della sessione");
+    }
   };
+
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-64">
+          <p>Caricamento dati in corso...</p>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (!course) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-64">
+          <p>Corso non trovato</p>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
