@@ -1,5 +1,4 @@
-
-import initSqlJs, { Database } from 'sql.js';
+import initSqlJs, { Database, SqlValue } from 'sql.js';
 import { Course, School, Project, SchoolLocation, CourseSession } from '@/types/schools';
 
 // Classe singleton per gestire l'accesso al database
@@ -158,7 +157,7 @@ class DatabaseService {
 
     // Verifichiamo se ci sono già dati nelle tabelle
     const result = this.db.exec("SELECT COUNT(*) as count FROM schools");
-    if (result.length > 0 && result[0].values[0][0] > 0) {
+    if (result.length > 0 && Number(result[0].values[0][0]) > 0) {
       console.log('I dati sono già presenti nel database');
       return;
     }
@@ -741,7 +740,7 @@ class DatabaseService {
       throw new Error('Sessione non trovata');
     }
     
-    // Fix: Convert SqlValue to number with Number() function
+    // Convert SqlValue to number with Number() function
     const currentHours = Number(currentResult[0].values[0][0]);
     
     this.db.exec(`
@@ -776,7 +775,7 @@ class DatabaseService {
       throw new Error('Sessione non trovata');
     }
     
-    // Fix: Convert SqlValue to number with Number() function
+    // Convert SqlValue to number with Number() function
     const hours = Number(result[0].values[0][0]);
     
     // Eliminiamo la sessione
