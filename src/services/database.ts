@@ -741,7 +741,8 @@ class DatabaseService {
       throw new Error('Sessione non trovata');
     }
     
-    const currentHours = currentResult[0].values[0][0] as number;
+    // Fix: Convert SqlValue to number with Number() function
+    const currentHours = Number(currentResult[0].values[0][0]);
     
     this.db.exec(`
       UPDATE course_sessions 
@@ -775,7 +776,8 @@ class DatabaseService {
       throw new Error('Sessione non trovata');
     }
     
-    const hours = result[0].values[0][0] as number;
+    // Fix: Convert SqlValue to number with Number() function
+    const hours = Number(result[0].values[0][0]);
     
     // Eliminiamo la sessione
     this.db.exec(`DELETE FROM course_sessions WHERE id = '${sessionId}';`);
