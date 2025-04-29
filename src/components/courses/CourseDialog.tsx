@@ -1,5 +1,5 @@
 
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Course, School } from "@/types/schools";
+import DatabaseService from "@/services/database";
 
 interface CourseDialogProps {
   course?: Course;
@@ -29,47 +30,6 @@ interface CourseDialogProps {
   onOpenChange: (open: boolean) => void;
   onSave: (course: Course) => void;
 }
-
-// Mock data - In a real app, this would come from an API
-const mockSchools: School[] = [
-  {
-    id: "1",
-    name: "ITIS Galileo Galilei",
-    address: "Via Example 123",
-    principalName: "Mario Rossi",
-    principalPhone: "123456789",
-    managerName: "Luigi Verdi",
-    managerPhone: "987654321",
-    secondaryLocations: [
-      {
-        name: "Sede Succursale",
-        address: "Via Example 456",
-        managerName: "Giuseppe Bianchi",
-        managerPhone: "123123123"
-      }
-    ],
-    projects: [
-      {
-        id: "p1",
-        name: "PNRR DM65",
-        year: 2024,
-        type: "PNRR",
-        documents: [],
-        totalCourses: 5,
-        courses: []
-      },
-      {
-        id: "p2",
-        name: "Scuola Viva",
-        year: 2024,
-        type: "PON",
-        documents: [],
-        totalCourses: 3,
-        courses: []
-      }
-    ]
-  }
-];
 
 export function CourseDialog({ course, experts, open, onOpenChange, onSave }: CourseDialogProps) {
   const [formData, setFormData] = useState<Omit<Course, "id" | "sessions">>({
@@ -87,18 +47,37 @@ export function CourseDialog({ course, experts, open, onOpenChange, onSave }: Co
   });
 
   const [selectedSchoolId, setSelectedSchoolId] = useState<string>(course?.schoolId || "");
+  const [schools, setSchools] = useState<School[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   
-  const selectedSchool = useMemo(() => 
-    mockSchools.find(s => s.id === selectedSchoolId), 
-    [selectedSchoolId]
-  );
+  // Carica le scuole dal database
+  useEffect(() => {
+    const loadSchools = async () => {
+      try {
+        setLoading(true);
+        const db = DatabaseService.getInstance();
+        const schoolsData = await db.getSchools();
+        setSchools(schoolsData);
+      } catch (error) {
+        console.error("Errore durante il caricamento delle scuole:", error);
+        toast.error("Errore durante il caricamento delle scuole");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSchools();
+  }, []);
+
+  // Trova la scuola selezionata
+  const selectedSchool = schools.find(s => s.id === selectedSchoolId);
 
   const handleInputChange = (field: string, value: any) => {
     setFormData({ ...formData, [field]: value });
   };
 
   const handleSchoolChange = (schoolId: string) => {
-    const school = mockSchools.find(s => s.id === schoolId);
+    const school = schools.find(s => s.id === schoolId);
     if (school) {
       setSelectedSchoolId(schoolId);
       handleInputChange("schoolId", schoolId);
@@ -183,22 +162,26 @@ export function CourseDialog({ course, experts, open, onOpenChange, onSave }: Co
               
               <div className="space-y-2">
                 <Label htmlFor="school">Scuola *</Label>
-                <Select
-                  value={formData.schoolId}
-                  onValueChange={handleSchoolChange}
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona una scuola" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {mockSchools && mockSchools.map((school) => (
-                      <SelectItem key={school.id} value={school.id}>
-                        {school.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {loading ? (
+                  <div className="text-sm text-muted-foreground">Caricamento scuole...</div>
+                ) : (
+                  <Select
+                    value={formData.schoolId}
+                    onValueChange={handleSchoolChange}
+                    required
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona una scuola" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {schools.map((school) => (
+                        <SelectItem key={school.id} value={school.id}>
+                          {school.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               
               {selectedSchool && (
@@ -209,6 +192,7 @@ export function CourseDialog({ course, experts, open, onOpenChange, onSave }: Co
                       value={formData.projectId}
                       onValueChange={handleProjectChange}
                       required
+                      disabled={!selectedSchool || selectedSchool.projects.length === 0}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Seleziona un progetto" />
