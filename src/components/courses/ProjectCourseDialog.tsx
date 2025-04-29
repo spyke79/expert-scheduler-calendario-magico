@@ -50,10 +50,11 @@ export function ProjectCourseDialog({ course, experts, open, onOpenChange, onSav
   const handleExpertChange = (expertId: string) => {
     const expert = experts.find(e => e.id === expertId);
     if (expert) {
-      // Create a new expert entry
+      // Create a new expert entry with default hourly rate
       const newExpert: Expert = {
         id: expertId,
         name: `${expert.firstName} ${expert.lastName}`,
+        hourlyRate: 60 // Default hourly rate
       };
 
       // Add expert if not already in the list
@@ -61,6 +62,13 @@ export function ProjectCourseDialog({ course, experts, open, onOpenChange, onSav
         handleInputChange("experts", [...formData.experts, newExpert]);
       }
     }
+  };
+
+  const handleExpertHourlyRateChange = (expertId: string, hourlyRate: number) => {
+    const updatedExperts = formData.experts.map(expert => 
+      expert.id === expertId ? { ...expert, hourlyRate } : expert
+    );
+    handleInputChange("experts", updatedExperts);
   };
 
   const handleRemoveExpert = (expertId: string) => {
@@ -196,6 +204,16 @@ export function ProjectCourseDialog({ course, experts, open, onOpenChange, onSav
                   <div key={expert.id} className="flex items-center gap-2">
                     <div className="flex-1 bg-slate-50 p-2 rounded-md">
                       {expert.name}
+                    </div>
+                    <div className="w-24">
+                      <Input
+                        type="number"
+                        value={expert.hourlyRate || 60}
+                        onChange={(e) => handleExpertHourlyRateChange(expert.id, Number(e.target.value))}
+                        min="1"
+                        placeholder="€/ora"
+                        className="w-full text-right"
+                      />
                     </div>
                     <Button 
                       type="button" 
