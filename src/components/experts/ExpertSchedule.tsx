@@ -37,7 +37,7 @@ export function ExpertSchedule({ expertId, courses, onViewSessionDetails }: Expe
   const expertSessions: ScheduleSession[] = [];
   
   courses
-    .filter(course => course.expertId === expertId)
+    .filter(course => course.experts.some(expert => expert.id === expertId))
     .forEach(course => {
       course.sessions.forEach(session => {
         try {

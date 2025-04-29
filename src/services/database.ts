@@ -309,12 +309,15 @@ class DatabaseService {
                 schoolName: courseRow[6] as string,
                 location: courseRow[7] as string,
                 totalHours: courseRow[8] as number,
-                expertId: courseRow[9] as string,
-                expertName: courseRow[10] as string,
-                tutor: {
-                  name: courseRow[11] as string,
-                  phone: courseRow[12] as string,
-                },
+                experts: [{ 
+                  id: courseRow[9] as string, 
+                  name: courseRow[10] as string,
+                  hourlyRate: courseRow[16] as number
+                }],
+                tutors: [{ 
+                  name: courseRow[11] as string, 
+                  phone: courseRow[12] as string 
+                }],
                 sessions,
               });
             }
@@ -562,70 +565,16 @@ class DatabaseService {
     this.db.exec(`DELETE FROM experts WHERE id = '${expertId}';`);
   }
 
-  // Metodi per le operazioni CRUD sui corsi
-  async getCourses(): Promise<any[]> {
-    await this.init();
-    if (!this.db) throw new Error('Database non inizializzato');
-
-    const result = this.db.exec('SELECT * FROM courses');
-    if (result.length === 0 || result[0].values.length === 0) {
-      return [];
-    }
-
-    const courses = [];
-    for (const row of result[0].values) {
-      const courseId = row[0] as string;
-      
-      // Otteniamo le sessioni del corso
-      const sessionsResult = this.db.exec(`
-        SELECT * FROM course_sessions WHERE courseId = '${courseId}'
-      `);
-      
-      const sessions: CourseSession[] = [];
-      if (sessionsResult.length > 0) {
-        for (const sessionRow of sessionsResult[0].values) {
-          sessions.push({
-            id: sessionRow[0] as string,
-            date: sessionRow[2] as string,
-            startTime: sessionRow[3] as string,
-            endTime: sessionRow[4] as string,
-            hours: sessionRow[5] as number,
-          });
-        }
-      }
-      
-      courses.push({
-        id: courseId,
-        title: row[1] as string,
-        description: row[2] as string,
-        projectId: row[3] as string,
-        projectName: row[4] as string,
-        schoolId: row[5] as string,
-        schoolName: row[6] as string,
-        location: row[7] as string,
-        totalHours: row[8] as number,
-        expertId: row[9] as string,
-        expertName: row[10] as string,
-        tutor: {
-          name: row[11] as string,
-          phone: row[12] as string,
-        },
-        startDate: row[13] as string,
-        endDate: row[14] as string,
-        remainingHours: row[15] as number,
-        hourlyRate: row[16] as number,
-        sessions,
-      });
-    }
-
-    return courses;
-  }
-
-  async addCourse(course: any): Promise<any> {
+// Add this method inside the DatabaseService class to update course data structure:
+async addCourse(course: any): Promise<any> {
     await this.init();
     if (!this.db) throw new Error('Database non inizializzato');
 
     const courseId = course.id || `course-${Date.now()}`;
+    
+    // Get the primary expert and tutor if using the new structure
+    const primaryExpert = course.experts && course.experts.length > 0 ? course.experts[0] : null;
+    const primaryTutor = course.tutors && course.tutors.length > 0 ? course.tutors[0] : null;
     
     this.db.exec(`
       INSERT INTO courses (
@@ -638,8 +587,10 @@ class DatabaseService {
         '${course.projectId || ""}', '${course.projectName}', 
         '${course.schoolId || ""}', '${course.schoolName}', 
         '${course.location}', ${course.totalHours}, 
-        '${course.expertId}', '${course.expertName}', 
-        '${course.tutor.name}', '${course.tutor.phone}',
+        '${primaryExpert ? primaryExpert.id : ""}', 
+        '${primaryExpert ? primaryExpert.name : ""}', 
+        '${primaryTutor ? primaryTutor.name : ""}', 
+        '${primaryTutor ? primaryTutor.phone : ""}',
         ${course.startDate ? `'${course.startDate}'` : 'NULL'}, 
         ${course.endDate ? `'${course.endDate}'` : 'NULL'}, 
         ${course.totalHours}, 
@@ -667,6 +618,10 @@ class DatabaseService {
     await this.init();
     if (!this.db) throw new Error('Database non inizializzato');
 
+    // Get the primary expert and tutor if using the new structure
+    const primaryExpert = course.experts && course.experts.length > 0 ? course.experts[0] : null;
+    const primaryTutor = course.tutors && course.tutors.length > 0 ? course.tutors[0] : null;
+
     this.db.exec(`
       UPDATE courses 
       SET title = '${course.title}', 
@@ -677,10 +632,10 @@ class DatabaseService {
           schoolName = '${course.schoolName}', 
           location = '${course.location}', 
           totalHours = ${course.totalHours}, 
-          expertId = '${course.expertId}', 
-          expertName = '${course.expertName}', 
-          tutorName = '${course.tutor.name}', 
-          tutorPhone = '${course.tutor.phone}',
+          expertId = '${primaryExpert ? primaryExpert.id : ""}', 
+          expertName = '${primaryExpert ? primaryExpert.name : ""}', 
+          tutorName = '${primaryTutor ? primaryTutor.name : ""}', 
+          tutorPhone = '${primaryTutor ? primaryTutor.phone : ""}',
           startDate = ${course.startDate ? `'${course.startDate}'` : 'NULL'}, 
           endDate = ${course.endDate ? `'${course.endDate}'` : 'NULL'}, 
           remainingHours = ${course.remainingHours || course.totalHours}, 
@@ -793,6 +748,69 @@ class DatabaseService {
   exportDatabaseToFile(): Uint8Array {
     if (!this.db) throw new Error('Database non inizializzato');
     return this.db.export();
+  }
+
+  // Update this method to handle the new structure
+  async getCourses(): Promise<any[]> {
+    await this.init();
+    if (!this.db) throw new Error('Database non inizializzato');
+
+    const result = this.db.exec('SELECT * FROM courses');
+    if (result.length === 0 || result[0].values.length === 0) {
+      return [];
+    }
+
+    const courses = [];
+    for (const row of result[0].values) {
+      const courseId = row[0] as string;
+      
+      // Otteniamo le sessioni del corso
+      const sessionsResult = this.db.exec(`
+        SELECT * FROM course_sessions WHERE courseId = '${courseId}'
+      `);
+      
+      const sessions: CourseSession[] = [];
+      if (sessionsResult.length > 0) {
+        for (const sessionRow of sessionsResult[0].values) {
+          sessions.push({
+            id: sessionRow[0] as string,
+            date: sessionRow[2] as string,
+            startTime: sessionRow[3] as string,
+            endTime: sessionRow[4] as string,
+            hours: sessionRow[5] as number,
+          });
+        }
+      }
+      
+      // Create course with the new structure
+      courses.push({
+        id: courseId,
+        title: row[1] as string,
+        description: row[2] as string,
+        projectId: row[3] as string,
+        projectName: row[4] as string,
+        schoolId: row[5] as string,
+        schoolName: row[6] as string,
+        location: row[7] as string,
+        totalHours: row[8] as number,
+        experts: [{ 
+          id: row[9] as string, 
+          name: row[10] as string,
+          hourlyRate: row[16] as number
+        }],
+        tutors: [{ 
+          name: row[11] as string, 
+          phone: row[12] as string 
+        }],
+        startDate: row[13] as string,
+        endDate: row[14] as string,
+        remainingHours: row[15] as number,
+        hourlyRate: row[16] as number,
+        sessions,
+      });
+    }
+
+    return courses;
   }
 }
 

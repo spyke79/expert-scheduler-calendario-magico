@@ -33,7 +33,7 @@ export function hasExpertConflict(
     if (currentCourseId && course.id === currentCourseId) continue;
     
     // Only check courses with the same expert
-    if (course.expertId === expertId) {
+    if (course.experts.some(expert => expert.id === expertId)) {
       for (const existingSession of course.sessions) {
         // Check if the session is on the same date
         if (existingSession.date === session.date) {

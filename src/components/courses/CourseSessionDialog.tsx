@@ -64,9 +64,12 @@ export function CourseSessionDialog({
   const checkForConflicts = (data: Omit<CourseSession, "id">) => {
     // Only check if we have all the required fields
     if (data.date && data.startTime && data.endTime) {
+      // Use the first expert's ID for conflict checking if available
+      const expertId = course.experts && course.experts.length > 0 ? course.experts[0].id : '';
+      
       const conflict = hasExpertConflict(
         data,
-        course.expertId,
+        expertId,
         allCourses,
         course.id
       );

@@ -7,6 +7,7 @@ import MainLayout from "@/components/layout/MainLayout";
 import { CalendarIcon } from "lucide-react";
 import { SessionDialog } from "@/components/courses/SessionDialog";
 import { ExpertSchedule } from "@/components/experts/ExpertSchedule";
+import { Course } from "@/types/schools";
 
 interface CourseSession {
   id: string;
@@ -29,7 +30,7 @@ const ExpertCalendar = () => {
 
   // Demo data - in a real app this would come from API or context
   const expertId = "exp-1"; // Current logged-in expert
-  const courses = [
+  const courses: Course[] = [
     {
       id: "c1",
       title: "Programmazione Web Base",
@@ -38,12 +39,12 @@ const ExpertCalendar = () => {
       schoolName: "ITIS Informatica",
       location: "Aula Magna",
       totalHours: 30,
-      expertId: "exp-1",
-      expertName: "Mario Rossi",
-      tutor: {
-        name: "Marco Verdi",
-        phone: "333-2223333"
-      },
+      experts: [
+        { id: "exp-1", name: "Mario Rossi" }
+      ],
+      tutors: [
+        { name: "Marco Verdi", phone: "333-2223333" }
+      ],
       sessions: [
         {
           id: "s1",
@@ -69,12 +70,12 @@ const ExpertCalendar = () => {
       schoolName: "Liceo Scientifico",
       location: "Aula 3B",
       totalHours: 20,
-      expertId: "exp-1",
-      expertName: "Mario Rossi",
-      tutor: {
-        name: "Luisa Neri",
-        phone: "333-4445555"
-      },
+      experts: [
+        { id: "exp-1", name: "Mario Rossi" }
+      ],
+      tutors: [
+        { name: "Luisa Neri", phone: "333-4445555" }
+      ],
       sessions: [
         {
           id: "s3",
@@ -93,12 +94,12 @@ const ExpertCalendar = () => {
       schoolName: "Istituto Tecnico",
       location: "Aula Lingue",
       totalHours: 25,
-      expertId: "exp-2", // Different expert
-      expertName: "Giovanna Bianchi",
-      tutor: {
-        name: "Giulia Rossi",
-        phone: "333-6667777"
-      },
+      experts: [
+        { id: "exp-2", name: "Giovanna Bianchi" }
+      ],
+      tutors: [
+        { name: "Giulia Rossi", phone: "333-6667777" }
+      ],
       sessions: [
         {
           id: "s4",

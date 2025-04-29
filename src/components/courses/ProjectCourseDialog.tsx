@@ -19,8 +19,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Plus, Trash } from "lucide-react";
 import { toast } from "sonner";
-import { Course } from "@/types/schools";
+import { Course, Expert, Tutor } from "@/types/schools";
 
 interface ProjectCourseDialogProps {
   course?: Course;
@@ -38,9 +39,8 @@ export function ProjectCourseDialog({ course, experts, open, onOpenChange, onSav
     schoolName: course?.schoolName || "",
     location: course?.location || "",
     totalHours: course?.totalHours || 0,
-    expertId: course?.expertId || "",
-    expertName: course?.expertName || "",
-    tutor: course?.tutor || { name: "", phone: "" },
+    experts: course?.experts || [],
+    tutors: course?.tutors || [{ name: "", phone: "" }],
   });
 
   const handleInputChange = (field: string, value: any) => {
@@ -50,8 +50,36 @@ export function ProjectCourseDialog({ course, experts, open, onOpenChange, onSav
   const handleExpertChange = (expertId: string) => {
     const expert = experts.find(e => e.id === expertId);
     if (expert) {
-      handleInputChange("expertId", expertId);
-      handleInputChange("expertName", `${expert.firstName} ${expert.lastName}`);
+      // Create a new expert entry
+      const newExpert: Expert = {
+        id: expertId,
+        name: `${expert.firstName} ${expert.lastName}`,
+      };
+
+      // Add expert if not already in the list
+      if (!formData.experts.some(e => e.id === expertId)) {
+        handleInputChange("experts", [...formData.experts, newExpert]);
+      }
+    }
+  };
+
+  const handleRemoveExpert = (expertId: string) => {
+    handleInputChange("experts", formData.experts.filter(e => e.id !== expertId));
+  };
+
+  const handleAddTutor = () => {
+    handleInputChange("tutors", [...formData.tutors, { name: "", phone: "" }]);
+  };
+
+  const handleTutorChange = (index: number, field: keyof Tutor, value: string) => {
+    const updatedTutors = [...formData.tutors];
+    updatedTutors[index] = { ...updatedTutors[index], [field]: value };
+    handleInputChange("tutors", updatedTutors);
+  };
+
+  const handleRemoveTutor = (index: number) => {
+    if (formData.tutors.length > 1) {
+      handleInputChange("tutors", formData.tutors.filter((_, i) => i !== index));
     }
   };
 
@@ -59,8 +87,15 @@ export function ProjectCourseDialog({ course, experts, open, onOpenChange, onSav
     e.preventDefault();
     
     if (!formData.title || !formData.description || !formData.totalHours || 
-        !formData.expertId || !formData.tutor.name || !formData.tutor.phone) {
+        formData.experts.length === 0) {
       toast.error("Compila tutti i campi obbligatori");
+      return;
+    }
+    
+    // Validate tutors
+    const invalidTutors = formData.tutors.some(tutor => !tutor.name || !tutor.phone);
+    if (invalidTutors) {
+      toast.error("Completa i dati di tutti i tutor");
       return;
     }
     
@@ -155,40 +190,80 @@ export function ProjectCourseDialog({ course, experts, open, onOpenChange, onSav
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="expert">Esperto *</Label>
-              <Select
-                value={formData.expertId}
-                onValueChange={handleExpertChange}
-                required
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleziona un esperto" />
-                </SelectTrigger>
-                <SelectContent>
-                  {experts.map((expert) => (
-                    <SelectItem key={expert.id} value={expert.id}>
-                      {expert.firstName} {expert.lastName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Esperti *</Label>
+              <div className="space-y-2">
+                {formData.experts.map((expert, index) => (
+                  <div key={expert.id} className="flex items-center gap-2">
+                    <div className="flex-1 bg-slate-50 p-2 rounded-md">
+                      {expert.name}
+                    </div>
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => handleRemoveExpert(expert.id)}
+                    >
+                      <Trash className="h-4 w-4 text-red-500" />
+                    </Button>
+                  </div>
+                ))}
+                
+                <div className="flex gap-2">
+                  <Select onValueChange={handleExpertChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Aggiungi esperto" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {experts.map((expert) => (
+                        <SelectItem key={expert.id} value={expert.id}>
+                          {expert.firstName} {expert.lastName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </div>
             
             <div className="space-y-2">
-              <Label>Tutor del Corso</Label>
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  value={formData.tutor.name}
-                  onChange={(e) => handleInputChange("tutor", { ...formData.tutor, name: e.target.value })}
-                  placeholder="Nome e cognome del tutor"
-                  required
-                />
-                <Input
-                  value={formData.tutor.phone}
-                  onChange={(e) => handleInputChange("tutor", { ...formData.tutor, phone: e.target.value })}
-                  placeholder="Telefono del tutor"
-                  required
-                />
+              <div className="flex items-center justify-between">
+                <Label>Tutor del Corso</Label>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleAddTutor}
+                >
+                  <Plus className="h-4 w-4 mr-1" /> Aggiungi Tutor
+                </Button>
+              </div>
+              
+              <div className="space-y-2">
+                {formData.tutors.map((tutor, index) => (
+                  <div key={index} className="flex gap-2 items-center">
+                    <Input
+                      value={tutor.name}
+                      onChange={(e) => handleTutorChange(index, "name", e.target.value)}
+                      placeholder="Nome e cognome del tutor"
+                      required
+                    />
+                    <Input
+                      value={tutor.phone}
+                      onChange={(e) => handleTutorChange(index, "phone", e.target.value)}
+                      placeholder="Telefono del tutor"
+                      required
+                    />
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => handleRemoveTutor(index)}
+                      disabled={formData.tutors.length === 1}
+                    >
+                      <Trash className="h-4 w-4 text-red-500" />
+                    </Button>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
