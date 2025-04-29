@@ -22,6 +22,17 @@ export interface CourseSession {
   hours: number;
 }
 
+export interface Expert {
+  id: string;
+  name: string;
+  hourlyRate?: number;
+}
+
+export interface Tutor {
+  name: string;
+  phone: string;
+}
+
 export interface Course {
   id: string;
   title: string;
@@ -32,12 +43,8 @@ export interface Course {
   schoolName: string;
   location: string;
   totalHours: number;
-  expertId: string;
-  expertName: string;
-  tutor: {
-    name: string;
-    phone: string;
-  };
+  experts: Expert[];
+  tutors: Tutor[];
   sessions: CourseSession[];
 }
 

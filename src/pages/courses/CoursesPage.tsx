@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Book, Plus, Search, Calendar } from "lucide-react";
+import { Book, Plus, Search, Calendar, Info } from "lucide-react";
 import MainLayout from "@/components/layout/MainLayout";
 import { CourseDialog } from "@/components/courses/CourseDialog";
+import { CourseDetails } from "@/components/courses/CourseDetails";
 import { Course } from "@/types/schools";
 import DatabaseService from "@/services/database";
 import { toast } from "sonner";
@@ -16,15 +17,12 @@ interface CourseWithDates extends Course {
   endDate: string;
   remainingHours: number;
   hourlyRate: number;
-  experts: {
-    name: string;
-    hourlyRate: number;
-  }[];
 }
 
 const CoursesPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<CourseWithDates | null>(null);
   const [courses, setCourses] = useState<CourseWithDates[]>([]);
   const [experts, setExperts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -39,9 +37,13 @@ const CoursesPage = () => {
         const coursesData = await db.getCourses();
         setCourses(coursesData.map(course => ({
           ...course,
-          experts: [
-            { name: course.expertName, hourlyRate: course.hourlyRate || 60 }
-          ]
+          // Converti la vecchia struttura al nuovo formato con array di esperti e tutor
+          experts: course.experts || [
+            { id: course.expertId, name: course.expertName, hourlyRate: course.hourlyRate || 60 }
+          ],
+          tutors: course.tutors || [
+            { name: course.tutor?.name || "", phone: course.tutor?.phone || "" }
+          ],
         })));
         
         // Carichiamo gli esperti
@@ -77,20 +79,44 @@ const CoursesPage = () => {
       
       const savedCourse = await db.addCourse(courseToAdd);
       
-      const courseWithDates: CourseWithDates = {
-        ...savedCourse,
-        experts: [
-          { name: savedCourse.expertName, hourlyRate: 60 }
-        ]
-      };
-      
-      setCourses([...courses, courseWithDates]);
+      setCourses([...courses, savedCourse as CourseWithDates]);
       setShowAddDialog(false);
       toast.success("Corso aggiunto con successo");
     } catch (error) {
       console.error("Errore durante l'aggiunta del corso:", error);
       toast.error("Errore durante l'aggiunta del corso");
     }
+  };
+
+  const updateCourse = async (updatedCourse: Course) => {
+    try {
+      const db = DatabaseService.getInstance();
+      
+      const courseToUpdate = {
+        ...updatedCourse,
+        // Mantieni i campi extra che potrebbero non essere nella nuova versione
+        startDate: (selectedCourse?.startDate || new Date().toISOString().split('T')[0]),
+        endDate: (selectedCourse?.endDate || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]),
+        remainingHours: (selectedCourse?.remainingHours || updatedCourse.totalHours),
+        hourlyRate: (selectedCourse?.hourlyRate || 60)
+      };
+      
+      await db.updateCourse(courseToUpdate);
+      
+      setCourses(courses.map(course => 
+        course.id === updatedCourse.id ? courseToUpdate as CourseWithDates : course
+      ));
+      
+      setSelectedCourse(courseToUpdate as CourseWithDates);
+      toast.success("Corso aggiornato con successo");
+    } catch (error) {
+      console.error("Errore durante l'aggiornamento del corso:", error);
+      toast.error("Errore durante l'aggiornamento del corso");
+    }
+  };
+
+  const handleViewDetails = (course: CourseWithDates) => {
+    setSelectedCourse(course);
   };
 
   const filteredCourses = courses.filter(course =>
@@ -123,6 +149,13 @@ const CoursesPage = () => {
           <div className="text-center p-8">
             <p>Caricamento dati in corso...</p>
           </div>
+        ) : selectedCourse ? (
+          <CourseDetails 
+            course={selectedCourse} 
+            experts={experts} 
+            onUpdate={updateCourse} 
+            onClose={() => setSelectedCourse(null)} 
+          />
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {filteredCourses.map((course) => (
@@ -164,14 +197,24 @@ const CoursesPage = () => {
                     
                     <div>
                       <p className="text-sm font-medium">Esperti</p>
-                      {course.experts.map((expert, index) => (
-                        <p key={index} className="text-sm">{expert.name}</p>
-                      ))}
+                      <div className="flex flex-wrap gap-1">
+                        {course.experts.map((expert, index) => (
+                          <Badge key={expert.id || index} variant="outline">
+                            {expert.name}
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
                     
                     <div>
                       <p className="text-sm font-medium">Tutor</p>
-                      <p className="text-sm">{course.tutor.name} • {course.tutor.phone}</p>
+                      <div className="flex flex-wrap gap-1">
+                        {course.tutors.map((tutor, index) => (
+                          <Badge key={index} variant="outline">
+                            {tutor.name}
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
                   </div>
                   
@@ -181,8 +224,12 @@ const CoursesPage = () => {
                         <Calendar className="h-4 w-4 mr-1" /> Calendario
                       </a>
                     </Button>
-                    <Button variant="default" className="w-full">
-                      Dettagli
+                    <Button 
+                      variant="default" 
+                      className="w-full"
+                      onClick={() => handleViewDetails(course)}
+                    >
+                      <Info className="h-4 w-4 mr-1" /> Dettagli
                     </Button>
                   </div>
                 </CardContent>
@@ -191,7 +238,7 @@ const CoursesPage = () => {
           </div>
         )}
 
-        {!isLoading && filteredCourses.length === 0 && (
+        {!isLoading && !selectedCourse && filteredCourses.length === 0 && (
           <div className="text-center p-8">
             <Book className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-medium">Nessun corso trovato</h3>

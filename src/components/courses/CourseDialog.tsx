@@ -20,8 +20,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Course, School } from "@/types/schools";
+import { Course, School, Expert, Tutor } from "@/types/schools";
 import DatabaseService from "@/services/database";
+import { Plus, X, UserPlus } from "lucide-react";
 
 interface CourseDialogProps {
   course?: Course;
@@ -41,14 +42,15 @@ export function CourseDialog({ course, experts, open, onOpenChange, onSave }: Co
     schoolName: course?.schoolName || "",
     location: course?.location || "",
     totalHours: course?.totalHours || 0,
-    expertId: course?.expertId || "",
-    expertName: course?.expertName || "",
-    tutor: course?.tutor || { name: "", phone: "" }
+    experts: course?.experts || [],
+    tutors: course?.tutors || []
   });
 
   const [selectedSchoolId, setSelectedSchoolId] = useState<string>(course?.schoolId || "");
   const [schools, setSchools] = useState<School[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [selectedExpertId, setSelectedExpertId] = useState<string>("");
+  const [newTutor, setNewTutor] = useState<{name: string, phone: string}>({name: "", phone: ""});
   
   // Carica le scuole dal database
   useEffect(() => {
@@ -96,19 +98,57 @@ export function CourseDialog({ course, experts, open, onOpenChange, onSave }: Co
     }
   };
 
-  const handleExpertChange = (expertId: string) => {
-    const expert = experts.find(e => e.id === expertId);
+  const addExpert = () => {
+    if (!selectedExpertId) return;
+    
+    const expert = experts.find(e => e.id === selectedExpertId);
     if (expert) {
-      handleInputChange("expertId", expertId);
-      handleInputChange("expertName", `${expert.firstName} ${expert.lastName}`);
+      // Verifica che l'esperto non sia già presente
+      if (formData.experts.some(e => e.id === expert.id)) {
+        toast.error("Questo esperto è già stato aggiunto");
+        return;
+      }
+      
+      const newExperts = [
+        ...formData.experts,
+        { 
+          id: expert.id, 
+          name: `${expert.firstName} ${expert.lastName}` 
+        }
+      ];
+      
+      handleInputChange("experts", newExperts);
+      setSelectedExpertId("");
     }
+  };
+
+  const removeExpert = (expertId: string) => {
+    const newExperts = formData.experts.filter(e => e.id !== expertId);
+    handleInputChange("experts", newExperts);
+  };
+
+  const addTutor = () => {
+    if (!newTutor.name || !newTutor.phone) {
+      toast.error("Inserisci nome e telefono del tutor");
+      return;
+    }
+    
+    const newTutors = [...formData.tutors, newTutor];
+    handleInputChange("tutors", newTutors);
+    setNewTutor({name: "", phone: ""});
+  };
+
+  const removeTutor = (index: number) => {
+    const newTutors = [...formData.tutors];
+    newTutors.splice(index, 1);
+    handleInputChange("tutors", newTutors);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.title || !formData.description || !formData.totalHours || 
-        !formData.expertId || !formData.tutor.name || !formData.tutor.phone ||
+        formData.experts.length === 0 || formData.tutors.length === 0 ||
         !formData.schoolId || !formData.projectId || !formData.location) {
       toast.error("Compila tutti i campi obbligatori");
       return;
@@ -232,55 +272,104 @@ export function CourseDialog({ course, experts, open, onOpenChange, onSave }: Co
                 </>
               )}
               
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="totalHours">Ore Totali *</Label>
-                  <Input
-                    id="totalHours"
-                    type="number"
-                    value={formData.totalHours}
-                    onChange={(e) => handleInputChange("totalHours", Number(e.target.value))}
-                    min="1"
-                    required
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="totalHours">Ore Totali *</Label>
+                <Input
+                  id="totalHours"
+                  type="number"
+                  value={formData.totalHours}
+                  onChange={(e) => handleInputChange("totalHours", Number(e.target.value))}
+                  min="1"
+                  required
+                />
+              </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="expert">Esperto *</Label>
-                  <Select
-                    value={formData.expertId}
-                    onValueChange={handleExpertChange}
-                    required
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleziona un esperto" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {experts && experts.map((expert) => (
-                        <SelectItem key={expert.id} value={expert.id}>
-                          {expert.firstName} {expert.lastName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              <div className="space-y-2">
+                <Label>Esperti del Corso *</Label>
+                <div className="grid grid-cols-1 gap-2">
+                  <div className="flex gap-2">
+                    <Select
+                      value={selectedExpertId}
+                      onValueChange={setSelectedExpertId}
+                    >
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="Seleziona un esperto" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {experts && experts.map((expert) => (
+                          <SelectItem key={expert.id} value={expert.id}>
+                            {expert.firstName} {expert.lastName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button type="button" onClick={addExpert}>
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  <div className="space-y-2 mt-2">
+                    {formData.experts.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">Nessun esperto aggiunto</div>
+                    ) : (
+                      formData.experts.map((expert) => (
+                        <div key={expert.id} className="flex items-center justify-between border p-2 rounded-md">
+                          <span>{expert.name}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeExpert(expert.id)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
               
               <div className="space-y-2">
-                <Label>Tutor del Corso</Label>
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    value={formData.tutor.name}
-                    onChange={(e) => handleInputChange("tutor", { ...formData.tutor, name: e.target.value })}
-                    placeholder="Nome e cognome del tutor"
-                    required
-                  />
-                  <Input
-                    value={formData.tutor.phone}
-                    onChange={(e) => handleInputChange("tutor", { ...formData.tutor, phone: e.target.value })}
-                    placeholder="Telefono del tutor"
-                    required
-                  />
+                <Label>Tutor del Corso *</Label>
+                <div className="grid grid-cols-1 gap-2">
+                  <div className="flex gap-2">
+                    <Input
+                      value={newTutor.name}
+                      onChange={(e) => setNewTutor({...newTutor, name: e.target.value})}
+                      placeholder="Nome e cognome del tutor"
+                      className="flex-1"
+                    />
+                    <Input
+                      value={newTutor.phone}
+                      onChange={(e) => setNewTutor({...newTutor, phone: e.target.value})}
+                      placeholder="Telefono del tutor"
+                      className="flex-1"
+                    />
+                    <Button type="button" onClick={addTutor}>
+                      <UserPlus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  <div className="space-y-2 mt-2">
+                    {formData.tutors.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">Nessun tutor aggiunto</div>
+                    ) : (
+                      formData.tutors.map((tutor, index) => (
+                        <div key={index} className="flex items-center justify-between border p-2 rounded-md">
+                          <span>{tutor.name} • {tutor.phone}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeTutor(index)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
