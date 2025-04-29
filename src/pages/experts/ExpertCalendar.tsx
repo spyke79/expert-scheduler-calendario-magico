@@ -167,7 +167,7 @@ const ExpertCalendar = () => {
   };
 
   // Calculate statistics
-  const expertCourses = courses.filter(course => course.expertId === expertId);
+  const expertCourses = courses.filter(course => course.experts.some(expert => expert.id === expertId));
   const totalSessions = expertCourses.reduce(
     (count, course) => count + course.sessions.length, 
     0
