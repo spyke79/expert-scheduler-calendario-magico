@@ -91,9 +91,7 @@ export function CourseDetails({ course, experts, onUpdate, onClose }: CourseDeta
               {course.experts.map((expert) => (
                 <div key={expert.id} className="flex items-center justify-between p-2 bg-slate-50 rounded-md">
                   <span>{expert.name}</span>
-                  {expert.hourlyRate && (
-                    <Badge variant="outline">{expert.hourlyRate}€/ora</Badge>
-                  )}
+                  <Badge variant="outline">{expert.hourlyRate || 60}€/ora</Badge>
                 </div>
               ))}
             </div>
