@@ -16,6 +16,7 @@ import { CourseSession, Course } from "@/types/schools";
 import { hasExpertConflict, getRemainingHours } from "@/utils/courseCalendar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CalendarIcon, AlertTriangle, Clock } from "lucide-react";
+import { calculateHoursFromTimes } from "@/utils/courseCalendar";
 
 interface CourseSessionDialogProps {
   session?: CourseSession;
@@ -53,6 +54,17 @@ export function CourseSessionDialog({
 
   const handleInputChange = (field: string, value: any) => {
     const updatedFormData = { ...formData, [field]: value };
+    
+    // Automatically calculate hours if both start and end times are set
+    if ((field === 'startTime' || field === 'endTime') && 
+        updatedFormData.startTime && updatedFormData.endTime) {
+      const calculatedHours = calculateHoursFromTimes(
+        updatedFormData.startTime,
+        updatedFormData.endTime
+      );
+      updatedFormData.hours = calculatedHours;
+    }
+    
     setFormData(updatedFormData);
     
     // Check for conflicts whenever date or time changes
@@ -83,12 +95,24 @@ export function CourseSessionDialog({
     }
   };
 
-  // Initial conflict check when dialog opens
+  // Recalculate hours when both times change and dialog opens
   useEffect(() => {
-    if (open && formData.date && formData.startTime && formData.endTime) {
+    if (open && formData.startTime && formData.endTime) {
+      const calculatedHours = calculateHoursFromTimes(
+        formData.startTime,
+        formData.endTime
+      );
+      
+      if (calculatedHours !== formData.hours) {
+        setFormData(prev => ({
+          ...prev,
+          hours: calculatedHours
+        }));
+      }
+      
       checkForConflicts(formData);
     }
-  }, [open]);
+  }, [open, formData.startTime, formData.endTime]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,18 +202,14 @@ export function CourseSessionDialog({
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="hours">Ore *</Label>
+              <Label htmlFor="hours">Ore (calcolate automaticamente) *</Label>
               <div className="flex items-center gap-2">
                 <Input
                   id="hours"
                   type="number"
                   value={formData.hours}
-                  onChange={(e) => handleInputChange("hours", Number(e.target.value))}
-                  min="0.5"
-                  max={availableHours}
-                  step="0.5"
-                  required
-                  className={formData.hours > availableHours ? "border-red-500" : ""}
+                  readOnly
+                  className={`${formData.hours > availableHours ? "border-red-500" : ""} bg-muted`}
                 />
                 <span className="text-sm text-muted-foreground whitespace-nowrap">
                   Max: {availableHours}h

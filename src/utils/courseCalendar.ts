@@ -1,4 +1,3 @@
-
 import { Course, CourseSession } from "@/types/schools";
 import { format, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
@@ -51,6 +50,31 @@ export function hasExpertConflict(
     }
   }
   return false;
+}
+
+/**
+ * Calculate hours between two time strings (HH:MM)
+ * Returns the difference in hours, rounded to the nearest 0.5
+ */
+export function calculateHoursFromTimes(startTime: string, endTime: string): number {
+  // Convert time strings to Date objects for easy calculation
+  const [startHours, startMinutes] = startTime.split(':').map(Number);
+  const [endHours, endMinutes] = endTime.split(':').map(Number);
+  
+  // Calculate total minutes
+  const startTotalMinutes = startHours * 60 + startMinutes;
+  const endTotalMinutes = endHours * 60 + endMinutes;
+  
+  // Calculate difference in hours
+  let diffHours = (endTotalMinutes - startTotalMinutes) / 60;
+  
+  // Handle cases where end time is earlier than start time (next day)
+  if (diffHours < 0) {
+    diffHours += 24;
+  }
+  
+  // Round to nearest 0.5
+  return Math.round(diffHours * 2) / 2;
 }
 
 /**
