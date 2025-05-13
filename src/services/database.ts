@@ -1,12 +1,29 @@
-import initSqlJs, { Database, SqlValue } from 'sql.js';
-import { Course, School, Project, SchoolLocation, CourseSession } from '@/types/schools';
 
-// Classe singleton per gestire l'accesso al database
+import { Course, School, Project, SchoolLocation, CourseSession } from '@/types/schools';
+import mysql from 'mysql2/promise';
+
+// Database configuration interface
+interface DbConfig {
+  host: string;
+  user: string;
+  password: string;
+  database: string;
+  port?: number;
+}
+
+// Singleton class to manage database access
 class DatabaseService {
   private static instance: DatabaseService;
-  private db: Database | null = null;
+  private connection: mysql.Connection | null = null;
   private isInitializing = false;
   private initPromise: Promise<void> | null = null;
+  private config: DbConfig = {
+    host: 'localhost',
+    user: 'root',
+    password: '',
+    database: 'school_management',
+    port: 3306
+  };
 
   private constructor() {}
 
@@ -17,20 +34,33 @@ class DatabaseService {
     return DatabaseService.instance;
   }
 
+  public setConfig(config: Partial<DbConfig>): void {
+    this.config = { ...this.config, ...config };
+    // Reset connection if already initialized
+    if (this.connection) {
+      this.connection.end();
+      this.connection = null;
+      this.initPromise = null;
+    }
+  }
+
   public async init(): Promise<void> {
-    if (this.db) return;
+    if (this.connection) return;
     if (this.initPromise) return this.initPromise;
 
     this.isInitializing = true;
     this.initPromise = new Promise<void>(async (resolve, reject) => {
       try {
         console.log('Inizializzazione del database...');
-        const SQL = await initSqlJs({
-          // Localizzazione del file wasm
-          locateFile: (file: string) => `https://sql.js.org/dist/${file}`
+        
+        this.connection = await mysql.createConnection({
+          host: this.config.host,
+          user: this.config.user,
+          password: this.config.password,
+          database: this.config.database,
+          port: this.config.port
         });
 
-        this.db = new SQL.Database();
         await this.createTables();
         await this.loadInitialData();
         console.log('Database inizializzato con successo');
@@ -47,143 +77,143 @@ class DatabaseService {
   }
 
   private async createTables(): Promise<void> {
-    if (!this.db) throw new Error('Database non inizializzato');
+    if (!this.connection) throw new Error('Database non inizializzato');
 
     // Tabella per le scuole
-    this.db.exec(`
+    await this.connection.execute(`
       CREATE TABLE IF NOT EXISTS schools (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        address TEXT NOT NULL,
-        principalName TEXT NOT NULL,
-        principalPhone TEXT NOT NULL,
-        managerName TEXT NOT NULL,
-        managerPhone TEXT NOT NULL,
-        mapLink TEXT
+        id VARCHAR(36) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        address VARCHAR(255) NOT NULL,
+        principalName VARCHAR(255) NOT NULL,
+        principalPhone VARCHAR(20) NOT NULL,
+        managerName VARCHAR(255) NOT NULL,
+        managerPhone VARCHAR(20) NOT NULL,
+        mapLink VARCHAR(255)
       );
     `);
 
     // Tabella per le sedi secondarie
-    this.db.exec(`
+    await this.connection.execute(`
       CREATE TABLE IF NOT EXISTS school_locations (
-        id TEXT PRIMARY KEY,
-        schoolId TEXT NOT NULL,
-        name TEXT NOT NULL,
-        address TEXT NOT NULL,
-        managerName TEXT NOT NULL,
-        managerPhone TEXT NOT NULL,
-        mapLink TEXT,
-        FOREIGN KEY (schoolId) REFERENCES schools(id)
+        id VARCHAR(36) PRIMARY KEY,
+        schoolId VARCHAR(36) NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        address VARCHAR(255) NOT NULL,
+        managerName VARCHAR(255) NOT NULL,
+        managerPhone VARCHAR(20) NOT NULL,
+        mapLink VARCHAR(255),
+        FOREIGN KEY (schoolId) REFERENCES schools(id) ON DELETE CASCADE
       );
     `);
 
     // Tabella per i progetti
-    this.db.exec(`
+    await this.connection.execute(`
       CREATE TABLE IF NOT EXISTS projects (
-        id TEXT PRIMARY KEY,
-        schoolId TEXT NOT NULL,
-        name TEXT NOT NULL,
-        year INTEGER NOT NULL,
-        type TEXT NOT NULL,
-        FOREIGN KEY (schoolId) REFERENCES schools(id)
+        id VARCHAR(36) PRIMARY KEY,
+        schoolId VARCHAR(36) NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        year INT NOT NULL,
+        type VARCHAR(50) NOT NULL,
+        FOREIGN KEY (schoolId) REFERENCES schools(id) ON DELETE CASCADE
       );
     `);
 
     // Tabella per gli esperti
-    this.db.exec(`
+    await this.connection.execute(`
       CREATE TABLE IF NOT EXISTS experts (
-        id TEXT PRIMARY KEY,
-        firstName TEXT NOT NULL,
-        lastName TEXT NOT NULL,
-        phone TEXT NOT NULL,
-        email TEXT NOT NULL,
-        fiscalCode TEXT NOT NULL,
-        vatNumber TEXT NOT NULL
+        id VARCHAR(36) PRIMARY KEY,
+        firstName VARCHAR(100) NOT NULL,
+        lastName VARCHAR(100) NOT NULL,
+        phone VARCHAR(20) NOT NULL,
+        email VARCHAR(100) NOT NULL,
+        fiscalCode VARCHAR(16) NOT NULL,
+        vatNumber VARCHAR(20) NOT NULL
       );
     `);
 
     // Tabella per le materie degli esperti
-    this.db.exec(`
+    await this.connection.execute(`
       CREATE TABLE IF NOT EXISTS expert_subjects (
-        expertId TEXT NOT NULL,
-        subject TEXT NOT NULL,
+        expertId VARCHAR(36) NOT NULL,
+        subject VARCHAR(100) NOT NULL,
         PRIMARY KEY (expertId, subject),
-        FOREIGN KEY (expertId) REFERENCES experts(id)
+        FOREIGN KEY (expertId) REFERENCES experts(id) ON DELETE CASCADE
       );
     `);
 
     // Tabella per i corsi
-    this.db.exec(`
+    await this.connection.execute(`
       CREATE TABLE IF NOT EXISTS courses (
-        id TEXT PRIMARY KEY,
-        title TEXT NOT NULL,
+        id VARCHAR(36) PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
         description TEXT NOT NULL,
-        projectId TEXT NOT NULL,
-        projectName TEXT NOT NULL,
-        schoolId TEXT NOT NULL,
-        schoolName TEXT NOT NULL,
-        location TEXT NOT NULL,
-        totalHours INTEGER NOT NULL,
-        expertId TEXT NOT NULL,
-        expertName TEXT NOT NULL,
-        tutorName TEXT NOT NULL,
-        tutorPhone TEXT NOT NULL,
-        startDate TEXT,
-        endDate TEXT,
-        remainingHours INTEGER,
-        hourlyRate INTEGER,
-        FOREIGN KEY (projectId) REFERENCES projects(id),
-        FOREIGN KEY (schoolId) REFERENCES schools(id),
-        FOREIGN KEY (expertId) REFERENCES experts(id)
+        projectId VARCHAR(36) NOT NULL,
+        projectName VARCHAR(255) NOT NULL,
+        schoolId VARCHAR(36) NOT NULL,
+        schoolName VARCHAR(255) NOT NULL,
+        location VARCHAR(255) NOT NULL,
+        totalHours INT NOT NULL,
+        expertId VARCHAR(36) NOT NULL,
+        expertName VARCHAR(255) NOT NULL,
+        tutorName VARCHAR(255) NOT NULL,
+        tutorPhone VARCHAR(20) NOT NULL,
+        startDate DATE,
+        endDate DATE,
+        remainingHours INT,
+        hourlyRate INT,
+        FOREIGN KEY (projectId) REFERENCES projects(id) ON DELETE CASCADE,
+        FOREIGN KEY (schoolId) REFERENCES schools(id) ON DELETE CASCADE,
+        FOREIGN KEY (expertId) REFERENCES experts(id) ON DELETE SET NULL
       );
     `);
 
     // Tabella per le sessioni dei corsi
-    this.db.exec(`
+    await this.connection.execute(`
       CREATE TABLE IF NOT EXISTS course_sessions (
-        id TEXT PRIMARY KEY,
-        courseId TEXT NOT NULL,
-        date TEXT NOT NULL,
-        startTime TEXT NOT NULL,
-        endTime TEXT NOT NULL,
-        hours INTEGER NOT NULL,
-        FOREIGN KEY (courseId) REFERENCES courses(id)
+        id VARCHAR(36) PRIMARY KEY,
+        courseId VARCHAR(36) NOT NULL,
+        date DATE NOT NULL,
+        startTime TIME NOT NULL,
+        endTime TIME NOT NULL,
+        hours INT NOT NULL,
+        FOREIGN KEY (courseId) REFERENCES courses(id) ON DELETE CASCADE
       );
     `);
   }
 
   private async loadInitialData(): Promise<void> {
-    if (!this.db) throw new Error('Database non inizializzato');
+    if (!this.connection) throw new Error('Database non inizializzato');
 
     // Verifichiamo se ci sono già dati nelle tabelle
-    const result = this.db.exec("SELECT COUNT(*) as count FROM schools");
-    if (result.length > 0 && Number(result[0].values[0][0]) > 0) {
+    const [rows]: any = await this.connection.execute("SELECT COUNT(*) as count FROM schools");
+    if (rows[0].count > 0) {
       console.log('I dati sono già presenti nel database');
       return;
     }
 
     // Dati iniziali per le scuole
-    this.db.exec(`
+    await this.connection.execute(`
       INSERT INTO schools (id, name, address, principalName, principalPhone, managerName, managerPhone, mapLink) VALUES
       ('1', 'ITIS Galileo Galilei', 'Via della Scienza 123, Roma', 'Prof. Alessandro Manzoni', '333-1234567', 'Dott.ssa Elena Rossi', '333-7654321', 'https://maps.google.com/?q=Roma'),
       ('2', 'Liceo Scientifico Einstein', 'Viale delle Scienze 78, Milano', 'Prof.ssa Maria Curie', '333-4445555', 'Dott. Roberto Bianchi', '333-6667777', 'https://maps.google.com/?q=Milano');
     `);
 
     // Dati iniziali per le sedi secondarie
-    this.db.exec(`
+    await this.connection.execute(`
       INSERT INTO school_locations (id, schoolId, name, address, managerName, managerPhone, mapLink) VALUES
       ('loc1', '1', 'Sede Distaccata Nord', 'Via dei Pini 45, Roma', 'Prof. Marco Verdi', '333-2223333', 'https://maps.google.com/?q=Roma+Via+dei+Pini');
     `);
 
     // Dati iniziali per i progetti
-    this.db.exec(`
+    await this.connection.execute(`
       INSERT INTO projects (id, schoolId, name, year, type) VALUES
       ('p1', '1', 'PNRR DM65', 2024, 'PNRR'),
       ('p2', '2', 'Scuola Viva', 2024, 'Regionale');
     `);
 
     // Dati iniziali per gli esperti
-    this.db.exec(`
+    await this.connection.execute(`
       INSERT INTO experts (id, firstName, lastName, phone, email, fiscalCode, vatNumber) VALUES
       ('exp1', 'Mario', 'Rossi', '333-1234567', 'mario.rossi@example.com', 'RSSMRA80A01H501T', '12345678901'),
       ('exp2', 'Laura', 'Bianchi', '333-7654321', 'laura.bianchi@example.com', 'BNCLRA75A41H501Y', '09876543210'),
@@ -191,7 +221,7 @@ class DatabaseService {
     `);
 
     // Dati iniziali per le materie degli esperti
-    this.db.exec(`
+    await this.connection.execute(`
       INSERT INTO expert_subjects (expertId, subject) VALUES
       ('exp1', 'Programmazione'),
       ('exp1', 'Web Design'),
@@ -204,7 +234,7 @@ class DatabaseService {
     `);
 
     // Dati iniziali per i corsi
-    this.db.exec(`
+    await this.connection.execute(`
       INSERT INTO courses (id, title, description, projectId, projectName, schoolId, schoolName, location, 
         totalHours, expertId, expertName, tutorName, tutorPhone, startDate, endDate, remainingHours, hourlyRate) VALUES
       ('1', 'Programmazione Web Base', 'Corso di base di programmazione web', 'p1', 'PNRR DM65', '1', 
@@ -216,7 +246,7 @@ class DatabaseService {
     `);
 
     // Dati iniziali per le sessioni dei corsi
-    this.db.exec(`
+    await this.connection.execute(`
       INSERT INTO course_sessions (id, courseId, date, startTime, endTime, hours) VALUES
       ('session1', '1', '2025-05-15', '14:30', '17:30', 3),
       ('session2', '1', '2025-05-22', '14:30', '17:30', 3),
@@ -227,96 +257,96 @@ class DatabaseService {
   // Metodi per le operazioni CRUD sulle scuole
   async getSchools(): Promise<School[]> {
     await this.init();
-    if (!this.db) throw new Error('Database non inizializzato');
+    if (!this.connection) throw new Error('Database non inizializzato');
 
-    const result = this.db.exec(`
+    const [schoolRows]: any = await this.connection.execute(`
       SELECT s.*, 
         (SELECT COUNT(*) FROM projects WHERE schoolId = s.id) as projectCount
       FROM schools s
     `);
 
-    if (result.length === 0 || result[0].values.length === 0) {
+    if (schoolRows.length === 0) {
       return [];
     }
 
     const schools: School[] = [];
-    for (const row of result[0].values) {
-      const schoolId = row[0] as string;
+    for (const row of schoolRows) {
+      const schoolId = row.id;
       
       // Otteniamo le sedi secondarie
-      const locationsResult = this.db.exec(`
-        SELECT * FROM school_locations WHERE schoolId = '${schoolId}'
-      `);
+      const [locationRows]: any = await this.connection.execute(`
+        SELECT * FROM school_locations WHERE schoolId = ?
+      `, [schoolId]);
       
       const secondaryLocations: SchoolLocation[] = [];
-      if (locationsResult.length > 0) {
-        for (const locationRow of locationsResult[0].values) {
+      if (locationRows.length > 0) {
+        for (const locationRow of locationRows) {
           secondaryLocations.push({
-            name: locationRow[2] as string,
-            address: locationRow[3] as string,
-            managerName: locationRow[4] as string,
-            managerPhone: locationRow[5] as string,
-            mapLink: locationRow[6] as string | undefined,
+            name: locationRow.name,
+            address: locationRow.address,
+            managerName: locationRow.managerName,
+            managerPhone: locationRow.managerPhone,
+            mapLink: locationRow.mapLink,
           });
         }
       }
 
       // Otteniamo i progetti
-      const projectsResult = this.db.exec(`
-        SELECT * FROM projects WHERE schoolId = '${schoolId}'
-      `);
+      const [projectRows]: any = await this.connection.execute(`
+        SELECT * FROM projects WHERE schoolId = ?
+      `, [schoolId]);
       
       const projects: Project[] = [];
-      if (projectsResult.length > 0) {
-        for (const projectRow of projectsResult[0].values) {
-          const projectId = projectRow[0] as string;
+      if (projectRows.length > 0) {
+        for (const projectRow of projectRows) {
+          const projectId = projectRow.id;
           
           // Per ogni progetto, otteniamo i corsi correlati
-          const coursesResult = this.db.exec(`
-            SELECT * FROM courses WHERE projectId = '${projectId}'
-          `);
+          const [courseRows]: any = await this.connection.execute(`
+            SELECT * FROM courses WHERE projectId = ?
+          `, [projectId]);
           
           const courses: Course[] = [];
-          if (coursesResult.length > 0) {
-            for (const courseRow of coursesResult[0].values) {
-              const courseId = courseRow[0] as string;
+          if (courseRows.length > 0) {
+            for (const courseRow of courseRows) {
+              const courseId = courseRow.id;
               
               // Per ogni corso, otteniamo le sessioni
-              const sessionsResult = this.db.exec(`
-                SELECT * FROM course_sessions WHERE courseId = '${courseId}'
-              `);
+              const [sessionRows]: any = await this.connection.execute(`
+                SELECT * FROM course_sessions WHERE courseId = ?
+              `, [courseId]);
               
               const sessions: CourseSession[] = [];
-              if (sessionsResult.length > 0) {
-                for (const sessionRow of sessionsResult[0].values) {
+              if (sessionRows.length > 0) {
+                for (const sessionRow of sessionRows) {
                   sessions.push({
-                    id: sessionRow[0] as string,
-                    date: sessionRow[2] as string,
-                    startTime: sessionRow[3] as string,
-                    endTime: sessionRow[4] as string,
-                    hours: sessionRow[5] as number,
+                    id: sessionRow.id,
+                    date: sessionRow.date.toISOString().split('T')[0],
+                    startTime: sessionRow.startTime.slice(0, 5),
+                    endTime: sessionRow.endTime.slice(0, 5),
+                    hours: sessionRow.hours,
                   });
                 }
               }
               
               courses.push({
                 id: courseId,
-                title: courseRow[1] as string,
-                description: courseRow[2] as string,
-                projectId: courseRow[3] as string,
-                projectName: courseRow[4] as string,
-                schoolId: courseRow[5] as string,
-                schoolName: courseRow[6] as string,
-                location: courseRow[7] as string,
-                totalHours: courseRow[8] as number,
+                title: courseRow.title,
+                description: courseRow.description,
+                projectId: courseRow.projectId,
+                projectName: courseRow.projectName,
+                schoolId: courseRow.schoolId,
+                schoolName: courseRow.schoolName,
+                location: courseRow.location,
+                totalHours: courseRow.totalHours,
                 experts: [{ 
-                  id: courseRow[9] as string, 
-                  name: courseRow[10] as string,
-                  hourlyRate: courseRow[16] as number
+                  id: courseRow.expertId, 
+                  name: courseRow.expertName,
+                  hourlyRate: courseRow.hourlyRate
                 }],
                 tutors: [{ 
-                  name: courseRow[11] as string, 
-                  phone: courseRow[12] as string 
+                  name: courseRow.tutorName, 
+                  phone: courseRow.tutorPhone 
                 }],
                 sessions,
               });
@@ -325,9 +355,9 @@ class DatabaseService {
           
           projects.push({
             id: projectId,
-            name: projectRow[2] as string,
-            year: projectRow[3] as number,
-            type: projectRow[4] as string,
+            name: projectRow.name,
+            year: projectRow.year,
+            type: projectRow.type,
             documents: [],
             totalCourses: courses.length,
             courses,
@@ -337,13 +367,13 @@ class DatabaseService {
       
       schools.push({
         id: schoolId,
-        name: row[1] as string,
-        address: row[2] as string,
-        principalName: row[3] as string,
-        principalPhone: row[4] as string,
-        managerName: row[5] as string,
-        managerPhone: row[6] as string,
-        mapLink: row[7] as string | undefined,
+        name: row.name,
+        address: row.address,
+        principalName: row.principalName,
+        principalPhone: row.principalPhone,
+        managerName: row.managerName,
+        managerPhone: row.managerPhone,
+        mapLink: row.mapLink,
         secondaryLocations,
         projects,
       });
@@ -354,26 +384,39 @@ class DatabaseService {
 
   async addSchool(school: Omit<School, "id" | "projects">): Promise<School> {
     await this.init();
-    if (!this.db) throw new Error('Database non inizializzato');
+    if (!this.connection) throw new Error('Database non inizializzato');
 
     const schoolId = `school-${Date.now()}`;
     
-    this.db.exec(`
+    await this.connection.execute(`
       INSERT INTO schools (id, name, address, principalName, principalPhone, managerName, managerPhone, mapLink)
-      VALUES ('${schoolId}', '${school.name}', '${school.address}', '${school.principalName}', 
-        '${school.principalPhone}', '${school.managerName}', '${school.managerPhone}', 
-        ${school.mapLink ? `'${school.mapLink}'` : 'NULL'});
-    `);
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      schoolId, 
+      school.name, 
+      school.address, 
+      school.principalName, 
+      school.principalPhone, 
+      school.managerName, 
+      school.managerPhone, 
+      school.mapLink || null
+    ]);
 
     // Aggiungiamo le sedi secondarie
     for (const location of school.secondaryLocations || []) {
       const locationId = `loc-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-      this.db.exec(`
+      await this.connection.execute(`
         INSERT INTO school_locations (id, schoolId, name, address, managerName, managerPhone, mapLink)
-        VALUES ('${locationId}', '${schoolId}', '${location.name}', '${location.address}', 
-          '${location.managerName}', '${location.managerPhone}', 
-          ${location.mapLink ? `'${location.mapLink}'` : 'NULL'});
-      `);
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `, [
+        locationId, 
+        schoolId, 
+        location.name, 
+        location.address, 
+        location.managerName, 
+        location.managerPhone, 
+        location.mapLink || null
+      ]);
     }
 
     return {
@@ -385,32 +428,47 @@ class DatabaseService {
 
   async updateSchool(school: School): Promise<School> {
     await this.init();
-    if (!this.db) throw new Error('Database non inizializzato');
+    if (!this.connection) throw new Error('Database non inizializzato');
 
-    this.db.exec(`
+    await this.connection.execute(`
       UPDATE schools 
-      SET name = '${school.name}', 
-          address = '${school.address}', 
-          principalName = '${school.principalName}', 
-          principalPhone = '${school.principalPhone}', 
-          managerName = '${school.managerName}', 
-          managerPhone = '${school.managerPhone}', 
-          mapLink = ${school.mapLink ? `'${school.mapLink}'` : 'NULL'}
-      WHERE id = '${school.id}';
-    `);
+      SET name = ?, 
+          address = ?, 
+          principalName = ?, 
+          principalPhone = ?, 
+          managerName = ?, 
+          managerPhone = ?, 
+          mapLink = ?
+      WHERE id = ?
+    `, [
+      school.name, 
+      school.address, 
+      school.principalName, 
+      school.principalPhone, 
+      school.managerName, 
+      school.managerPhone, 
+      school.mapLink || null,
+      school.id
+    ]);
 
     // Eliminiamo tutte le sedi secondarie esistenti
-    this.db.exec(`DELETE FROM school_locations WHERE schoolId = '${school.id}';`);
+    await this.connection.execute(`DELETE FROM school_locations WHERE schoolId = ?`, [school.id]);
 
     // Aggiungiamo le nuove sedi secondarie
     for (const location of school.secondaryLocations || []) {
       const locationId = `loc-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-      this.db.exec(`
+      await this.connection.execute(`
         INSERT INTO school_locations (id, schoolId, name, address, managerName, managerPhone, mapLink)
-        VALUES ('${locationId}', '${school.id}', '${location.name}', '${location.address}', 
-          '${location.managerName}', '${location.managerPhone}', 
-          ${location.mapLink ? `'${location.mapLink}'` : 'NULL'});
-      `);
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `, [
+        locationId, 
+        school.id, 
+        location.name, 
+        location.address, 
+        location.managerName, 
+        location.managerPhone, 
+        location.mapLink || null
+      ]);
     }
 
     return school;
@@ -418,74 +476,47 @@ class DatabaseService {
 
   async deleteSchool(schoolId: string): Promise<void> {
     await this.init();
-    if (!this.db) throw new Error('Database non inizializzato');
+    if (!this.connection) throw new Error('Database non inizializzato');
 
-    // Eliminiamo prima tutte le relazioni
-    this.db.exec(`DELETE FROM school_locations WHERE schoolId = '${schoolId}';`);
-    
-    // Otteniamo i progetti della scuola
-    const projectsResult = this.db.exec(`SELECT id FROM projects WHERE schoolId = '${schoolId}'`);
-    if (projectsResult.length > 0) {
-      for (const projectRow of projectsResult[0].values) {
-        const projectId = projectRow[0] as string;
-        
-        // Otteniamo i corsi del progetto
-        const coursesResult = this.db.exec(`SELECT id FROM courses WHERE projectId = '${projectId}'`);
-        if (coursesResult.length > 0) {
-          for (const courseRow of coursesResult[0].values) {
-            const courseId = courseRow[0] as string;
-            
-            // Eliminiamo le sessioni del corso
-            this.db.exec(`DELETE FROM course_sessions WHERE courseId = '${courseId}';`);
-          }
-        }
-        
-        // Eliminiamo i corsi del progetto
-        this.db.exec(`DELETE FROM courses WHERE projectId = '${projectId}';`);
-      }
-    }
-    
-    // Eliminiamo i progetti della scuola
-    this.db.exec(`DELETE FROM projects WHERE schoolId = '${schoolId}';`);
-    
-    // Infine eliminiamo la scuola
-    this.db.exec(`DELETE FROM schools WHERE id = '${schoolId}';`);
+    // MySQL cascade delete handles the child relationships
+    await this.connection.execute(`DELETE FROM schools WHERE id = ?`, [schoolId]);
   }
 
   // Metodi per le operazioni CRUD sugli esperti
   async getExperts(): Promise<any[]> {
     await this.init();
-    if (!this.db) throw new Error('Database non inizializzato');
+    if (!this.connection) throw new Error('Database non inizializzato');
 
-    const result = this.db.exec('SELECT * FROM experts');
-    if (result.length === 0 || result[0].values.length === 0) {
+    const [expertRows]: any = await this.connection.execute('SELECT * FROM experts');
+    
+    if (expertRows.length === 0) {
       return [];
     }
 
     const experts = [];
-    for (const row of result[0].values) {
-      const expertId = row[0] as string;
+    for (const row of expertRows) {
+      const expertId = row.id;
       
       // Otteniamo le materie dell'esperto
-      const subjectsResult = this.db.exec(`
-        SELECT subject FROM expert_subjects WHERE expertId = '${expertId}'
-      `);
+      const [subjectRows]: any = await this.connection.execute(`
+        SELECT subject FROM expert_subjects WHERE expertId = ?
+      `, [expertId]);
       
       const subjects: string[] = [];
-      if (subjectsResult.length > 0) {
-        for (const subjectRow of subjectsResult[0].values) {
-          subjects.push(subjectRow[0] as string);
+      if (subjectRows.length > 0) {
+        for (const subjectRow of subjectRows) {
+          subjects.push(subjectRow.subject);
         }
       }
       
       experts.push({
         id: expertId,
-        firstName: row[1] as string,
-        lastName: row[2] as string,
-        phone: row[3] as string,
-        email: row[4] as string,
-        fiscalCode: row[5] as string,
-        vatNumber: row[6] as string,
+        firstName: row.firstName,
+        lastName: row.lastName,
+        phone: row.phone,
+        email: row.email,
+        fiscalCode: row.fiscalCode,
+        vatNumber: row.vatNumber,
         subjects,
       });
     }
@@ -495,22 +526,29 @@ class DatabaseService {
 
   async addExpert(expert: any): Promise<any> {
     await this.init();
-    if (!this.db) throw new Error('Database non inizializzato');
+    if (!this.connection) throw new Error('Database non inizializzato');
 
     const expertId = expert.id || `expert-${Date.now()}`;
     
-    this.db.exec(`
+    await this.connection.execute(`
       INSERT INTO experts (id, firstName, lastName, phone, email, fiscalCode, vatNumber)
-      VALUES ('${expertId}', '${expert.firstName}', '${expert.lastName}', '${expert.phone}',
-        '${expert.email}', '${expert.fiscalCode}', '${expert.vatNumber}');
-    `);
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `, [
+      expertId, 
+      expert.firstName, 
+      expert.lastName, 
+      expert.phone,
+      expert.email, 
+      expert.fiscalCode, 
+      expert.vatNumber
+    ]);
 
     // Aggiungiamo le materie
     for (const subject of expert.subjects || []) {
-      this.db.exec(`
+      await this.connection.execute(`
         INSERT INTO expert_subjects (expertId, subject)
-        VALUES ('${expertId}', '${subject}');
-      `);
+        VALUES (?, ?)
+      `, [expertId, subject]);
     }
 
     return {
@@ -521,28 +559,36 @@ class DatabaseService {
 
   async updateExpert(expert: any): Promise<any> {
     await this.init();
-    if (!this.db) throw new Error('Database non inizializzato');
+    if (!this.connection) throw new Error('Database non inizializzato');
 
-    this.db.exec(`
+    await this.connection.execute(`
       UPDATE experts 
-      SET firstName = '${expert.firstName}', 
-          lastName = '${expert.lastName}', 
-          phone = '${expert.phone}', 
-          email = '${expert.email}', 
-          fiscalCode = '${expert.fiscalCode}', 
-          vatNumber = '${expert.vatNumber}'
-      WHERE id = '${expert.id}';
-    `);
+      SET firstName = ?, 
+          lastName = ?, 
+          phone = ?, 
+          email = ?, 
+          fiscalCode = ?, 
+          vatNumber = ?
+      WHERE id = ?
+    `, [
+      expert.firstName, 
+      expert.lastName, 
+      expert.phone, 
+      expert.email, 
+      expert.fiscalCode, 
+      expert.vatNumber,
+      expert.id
+    ]);
 
     // Eliminiamo tutte le materie esistenti
-    this.db.exec(`DELETE FROM expert_subjects WHERE expertId = '${expert.id}';`);
+    await this.connection.execute(`DELETE FROM expert_subjects WHERE expertId = ?`, [expert.id]);
 
     // Aggiungiamo le nuove materie
     for (const subject of expert.subjects || []) {
-      this.db.exec(`
+      await this.connection.execute(`
         INSERT INTO expert_subjects (expertId, subject)
-        VALUES ('${expert.id}', '${subject}');
-      `);
+        VALUES (?, ?)
+      `, [expert.id, subject]);
     }
 
     return expert;
@@ -550,25 +596,15 @@ class DatabaseService {
 
   async deleteExpert(expertId: string): Promise<void> {
     await this.init();
-    if (!this.db) throw new Error('Database non inizializzato');
+    if (!this.connection) throw new Error('Database non inizializzato');
 
-    // Eliminiamo prima le relazioni
-    this.db.exec(`DELETE FROM expert_subjects WHERE expertId = '${expertId}';`);
-    
-    // Aggiorniamo i corsi che fanno riferimento a questo esperto (in un'app reale potrebbe essere meglio impedire l'eliminazione)
-    this.db.exec(`
-      UPDATE courses SET expertId = 'deleted', expertName = 'Esperto rimosso'
-      WHERE expertId = '${expertId}';
-    `);
-    
-    // Infine eliminiamo l'esperto
-    this.db.exec(`DELETE FROM experts WHERE id = '${expertId}';`);
+    // MySQL cascade delete handles child tables
+    await this.connection.execute(`DELETE FROM experts WHERE id = ?`, [expertId]);
   }
 
-// Add this method inside the DatabaseService class to update course data structure:
-async addCourse(course: any): Promise<any> {
+  async addCourse(course: any): Promise<any> {
     await this.init();
-    if (!this.db) throw new Error('Database non inizializzato');
+    if (!this.connection) throw new Error('Database non inizializzato');
 
     const courseId = course.id || `course-${Date.now()}`;
     
@@ -576,36 +612,47 @@ async addCourse(course: any): Promise<any> {
     const primaryExpert = course.experts && course.experts.length > 0 ? course.experts[0] : null;
     const primaryTutor = course.tutors && course.tutors.length > 0 ? course.tutors[0] : null;
     
-    this.db.exec(`
+    await this.connection.execute(`
       INSERT INTO courses (
         id, title, description, projectId, projectName, schoolId, schoolName, 
         location, totalHours, expertId, expertName, tutorName, tutorPhone,
         startDate, endDate, remainingHours, hourlyRate
       )
-      VALUES (
-        '${courseId}', '${course.title}', '${course.description}', 
-        '${course.projectId || ""}', '${course.projectName}', 
-        '${course.schoolId || ""}', '${course.schoolName}', 
-        '${course.location}', ${course.totalHours}, 
-        '${primaryExpert ? primaryExpert.id : ""}', 
-        '${primaryExpert ? primaryExpert.name : ""}', 
-        '${primaryTutor ? primaryTutor.name : ""}', 
-        '${primaryTutor ? primaryTutor.phone : ""}',
-        ${course.startDate ? `'${course.startDate}'` : 'NULL'}, 
-        ${course.endDate ? `'${course.endDate}'` : 'NULL'}, 
-        ${course.totalHours}, 
-        ${course.hourlyRate || 60}
-      );
-    `);
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      courseId,
+      course.title,
+      course.description, 
+      course.projectId || "",
+      course.projectName, 
+      course.schoolId || "",
+      course.schoolName, 
+      course.location,
+      course.totalHours, 
+      primaryExpert ? primaryExpert.id : "",
+      primaryExpert ? primaryExpert.name : "",
+      primaryTutor ? primaryTutor.name : "",
+      primaryTutor ? primaryTutor.phone : "",
+      course.startDate || null,
+      course.endDate || null,
+      course.totalHours,
+      course.hourlyRate || 60
+    ]);
 
     // Aggiungiamo le sessioni
     for (const session of course.sessions || []) {
       const sessionId = session.id || `session-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-      this.db.exec(`
+      await this.connection.execute(`
         INSERT INTO course_sessions (id, courseId, date, startTime, endTime, hours)
-        VALUES ('${sessionId}', '${courseId}', '${session.date}', '${session.startTime}',
-          '${session.endTime}', ${session.hours});
-      `);
+        VALUES (?, ?, ?, ?, ?, ?)
+      `, [
+        sessionId,
+        courseId,
+        session.date,
+        session.startTime,
+        session.endTime,
+        session.hours
+      ]);
     }
 
     return {
@@ -616,65 +663,86 @@ async addCourse(course: any): Promise<any> {
 
   async updateCourse(course: any): Promise<any> {
     await this.init();
-    if (!this.db) throw new Error('Database non inizializzato');
+    if (!this.connection) throw new Error('Database non inizializzato');
 
     // Get the primary expert and tutor if using the new structure
     const primaryExpert = course.experts && course.experts.length > 0 ? course.experts[0] : null;
     const primaryTutor = course.tutors && course.tutors.length > 0 ? course.tutors[0] : null;
 
-    this.db.exec(`
+    await this.connection.execute(`
       UPDATE courses 
-      SET title = '${course.title}', 
-          description = '${course.description}', 
-          projectId = '${course.projectId || ""}', 
-          projectName = '${course.projectName}', 
-          schoolId = '${course.schoolId || ""}', 
-          schoolName = '${course.schoolName}', 
-          location = '${course.location}', 
-          totalHours = ${course.totalHours}, 
-          expertId = '${primaryExpert ? primaryExpert.id : ""}', 
-          expertName = '${primaryExpert ? primaryExpert.name : ""}', 
-          tutorName = '${primaryTutor ? primaryTutor.name : ""}', 
-          tutorPhone = '${primaryTutor ? primaryTutor.phone : ""}',
-          startDate = ${course.startDate ? `'${course.startDate}'` : 'NULL'}, 
-          endDate = ${course.endDate ? `'${course.endDate}'` : 'NULL'}, 
-          remainingHours = ${course.remainingHours || course.totalHours}, 
-          hourlyRate = ${course.hourlyRate || 60}
-      WHERE id = '${course.id}';
-    `);
+      SET title = ?, 
+          description = ?, 
+          projectId = ?, 
+          projectName = ?, 
+          schoolId = ?, 
+          schoolName = ?, 
+          location = ?, 
+          totalHours = ?, 
+          expertId = ?, 
+          expertName = ?, 
+          tutorName = ?, 
+          tutorPhone = ?,
+          startDate = ?, 
+          endDate = ?, 
+          remainingHours = ?, 
+          hourlyRate = ?
+      WHERE id = ?
+    `, [
+      course.title,
+      course.description,
+      course.projectId || "",
+      course.projectName,
+      course.schoolId || "",
+      course.schoolName,
+      course.location,
+      course.totalHours,
+      primaryExpert ? primaryExpert.id : "",
+      primaryExpert ? primaryExpert.name : "",
+      primaryTutor ? primaryTutor.name : "",
+      primaryTutor ? primaryTutor.phone : "",
+      course.startDate || null,
+      course.endDate || null,
+      course.remainingHours || course.totalHours,
+      course.hourlyRate || 60,
+      course.id
+    ]);
 
     return course;
   }
 
   async deleteCourse(courseId: string): Promise<void> {
     await this.init();
-    if (!this.db) throw new Error('Database non inizializzato');
+    if (!this.connection) throw new Error('Database non inizializzato');
 
-    // Eliminiamo prima le sessioni
-    this.db.exec(`DELETE FROM course_sessions WHERE courseId = '${courseId}';`);
-    
-    // Poi eliminiamo il corso
-    this.db.exec(`DELETE FROM courses WHERE id = '${courseId}';`);
+    // MySQL cascade delete handles child tables
+    await this.connection.execute(`DELETE FROM courses WHERE id = ?`, [courseId]);
   }
 
   async addCourseSession(courseId: string, session: CourseSession): Promise<CourseSession> {
     await this.init();
-    if (!this.db) throw new Error('Database non inizializzato');
+    if (!this.connection) throw new Error('Database non inizializzato');
 
     const sessionId = session.id || `session-${Date.now()}`;
     
-    this.db.exec(`
+    await this.connection.execute(`
       INSERT INTO course_sessions (id, courseId, date, startTime, endTime, hours)
-      VALUES ('${sessionId}', '${courseId}', '${session.date}', '${session.startTime}',
-        '${session.endTime}', ${session.hours});
-    `);
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [
+      sessionId,
+      courseId,
+      session.date,
+      session.startTime,
+      session.endTime,
+      session.hours
+    ]);
 
     // Aggiorniamo le ore rimanenti del corso
-    this.db.exec(`
+    await this.connection.execute(`
       UPDATE courses 
-      SET remainingHours = remainingHours - ${session.hours}
-      WHERE id = '${courseId}';
-    `);
+      SET remainingHours = remainingHours - ?
+      WHERE id = ?
+    `, [session.hours, courseId]);
 
     return {
       ...session,
@@ -684,100 +752,98 @@ async addCourse(course: any): Promise<any> {
 
   async updateCourseSession(session: CourseSession, courseId: string): Promise<CourseSession> {
     await this.init();
-    if (!this.db) throw new Error('Database non inizializzato');
+    if (!this.connection) throw new Error('Database non inizializzato');
 
     // Otteniamo le ore attuali della sessione
-    const currentResult = this.db.exec(`
-      SELECT hours FROM course_sessions WHERE id = '${session.id}'
-    `);
+    const [rows]: any = await this.connection.execute(`
+      SELECT hours FROM course_sessions WHERE id = ?
+    `, [session.id]);
     
-    if (currentResult.length === 0 || currentResult[0].values.length === 0) {
+    if (rows.length === 0) {
       throw new Error('Sessione non trovata');
     }
     
-    // Convert SqlValue to number with Number() function
-    const currentHours = Number(currentResult[0].values[0][0]);
+    const currentHours = rows[0].hours;
     
-    this.db.exec(`
+    await this.connection.execute(`
       UPDATE course_sessions 
-      SET date = '${session.date}', 
-          startTime = '${session.startTime}', 
-          endTime = '${session.endTime}', 
-          hours = ${session.hours}
-      WHERE id = '${session.id}';
-    `);
+      SET date = ?, 
+          startTime = ?, 
+          endTime = ?, 
+          hours = ?
+      WHERE id = ?
+    `, [
+      session.date,
+      session.startTime,
+      session.endTime,
+      session.hours,
+      session.id
+    ]);
 
     // Aggiorniamo le ore rimanenti del corso
-    this.db.exec(`
+    await this.connection.execute(`
       UPDATE courses 
-      SET remainingHours = remainingHours - ${session.hours} + ${currentHours}
-      WHERE id = '${courseId}';
-    `);
+      SET remainingHours = remainingHours - ? + ?
+      WHERE id = ?
+    `, [session.hours, currentHours, courseId]);
 
     return session;
   }
 
   async deleteCourseSession(sessionId: string, courseId: string): Promise<void> {
     await this.init();
-    if (!this.db) throw new Error('Database non inizializzato');
+    if (!this.connection) throw new Error('Database non inizializzato');
 
     // Otteniamo le ore della sessione
-    const result = this.db.exec(`
-      SELECT hours FROM course_sessions WHERE id = '${sessionId}'
-    `);
+    const [rows]: any = await this.connection.execute(`
+      SELECT hours FROM course_sessions WHERE id = ?
+    `, [sessionId]);
     
-    if (result.length === 0 || result[0].values.length === 0) {
+    if (rows.length === 0) {
       throw new Error('Sessione non trovata');
     }
     
-    // Convert SqlValue to number with Number() function
-    const hours = Number(result[0].values[0][0]);
+    const hours = rows[0].hours;
     
     // Eliminiamo la sessione
-    this.db.exec(`DELETE FROM course_sessions WHERE id = '${sessionId}';`);
+    await this.connection.execute(`DELETE FROM course_sessions WHERE id = ?`, [sessionId]);
     
     // Aggiorniamo le ore rimanenti del corso
-    this.db.exec(`
+    await this.connection.execute(`
       UPDATE courses 
-      SET remainingHours = remainingHours + ${hours}
-      WHERE id = '${courseId}';
-    `);
+      SET remainingHours = remainingHours + ?
+      WHERE id = ?
+    `, [hours, courseId]);
   }
 
-  // Metodo per salvare il database come file (da implementare in una versione futura)
-  exportDatabaseToFile(): Uint8Array {
-    if (!this.db) throw new Error('Database non inizializzato');
-    return this.db.export();
-  }
-
-  // Update this method to handle the new structure
   async getCourses(): Promise<any[]> {
     await this.init();
-    if (!this.db) throw new Error('Database non inizializzato');
+    if (!this.connection) throw new Error('Database non inizializzato');
 
-    const result = this.db.exec('SELECT * FROM courses');
-    if (result.length === 0 || result[0].values.length === 0) {
+    const [courseRows]: any = await this.connection.execute('SELECT * FROM courses');
+    
+    if (courseRows.length === 0) {
       return [];
     }
 
     const courses = [];
-    for (const row of result[0].values) {
-      const courseId = row[0] as string;
+    for (const row of courseRows) {
+      const courseId = row.id;
       
       // Otteniamo le sessioni del corso
-      const sessionsResult = this.db.exec(`
-        SELECT * FROM course_sessions WHERE courseId = '${courseId}'
-      `);
+      const [sessionRows]: any = await this.connection.execute(`
+        SELECT * FROM course_sessions WHERE courseId = ?
+      `, [courseId]);
       
       const sessions: CourseSession[] = [];
-      if (sessionsResult.length > 0) {
-        for (const sessionRow of sessionsResult[0].values) {
+      if (sessionRows.length > 0) {
+        for (const sessionRow of sessionRows) {
           sessions.push({
-            id: sessionRow[0] as string,
-            date: sessionRow[2] as string,
-            startTime: sessionRow[3] as string,
-            endTime: sessionRow[4] as string,
-            hours: sessionRow[5] as number,
+            id: sessionRow.id,
+            date: sessionRow.date.toISOString().split('T')[0],
+            startTime: sessionRow.startTime.slice(0, 5),
+            endTime: sessionRow.endTime.slice(0, 5),
+            hours: sessionRow.hours,
           });
         }
       }
@@ -785,27 +851,27 @@ async addCourse(course: any): Promise<any> {
       // Create course with the new structure
       courses.push({
         id: courseId,
-        title: row[1] as string,
-        description: row[2] as string,
-        projectId: row[3] as string,
-        projectName: row[4] as string,
-        schoolId: row[5] as string,
-        schoolName: row[6] as string,
-        location: row[7] as string,
-        totalHours: row[8] as number,
+        title: row.title,
+        description: row.description,
+        projectId: row.projectId,
+        projectName: row.projectName,
+        schoolId: row.schoolId,
+        schoolName: row.schoolName,
+        location: row.location,
+        totalHours: row.totalHours,
         experts: [{ 
-          id: row[9] as string, 
-          name: row[10] as string,
-          hourlyRate: row[16] as number
+          id: row.expertId, 
+          name: row.expertName,
+          hourlyRate: row.hourlyRate
         }],
         tutors: [{ 
-          name: row[11] as string, 
-          phone: row[12] as string 
+          name: row.tutorName, 
+          phone: row.tutorPhone 
         }],
-        startDate: row[13] as string,
-        endDate: row[14] as string,
-        remainingHours: row[15] as number,
-        hourlyRate: row[16] as number,
+        startDate: row.startDate ? row.startDate.toISOString().split('T')[0] : null,
+        endDate: row.endDate ? row.endDate.toISOString().split('T')[0] : null,
+        remainingHours: row.remainingHours,
+        hourlyRate: row.hourlyRate,
         sessions,
       });
     }
