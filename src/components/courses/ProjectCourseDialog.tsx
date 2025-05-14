@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,7 +34,9 @@ export function ProjectCourseDialog({ course, experts, open, onOpenChange, onSav
   const [formData, setFormData] = useState<Omit<Course, "id" | "sessions">>({
     title: course?.title || "",
     description: course?.description || "",
+    projectId: course?.projectId || "",
     projectName: course?.projectName || "",
+    schoolId: course?.schoolId || "",
     schoolName: course?.schoolName || "",
     location: course?.location || "",
     totalHours: course?.totalHours || 0,
@@ -107,10 +108,17 @@ export function ProjectCourseDialog({ course, experts, open, onOpenChange, onSav
       return;
     }
     
+    // Ensure projectId and schoolId are set (generate temporary IDs if needed)
+    const finalFormData = {
+      ...formData,
+      projectId: formData.projectId || `project-${Date.now()}`,
+      schoolId: formData.schoolId || `school-${Date.now()}`
+    };
+    
     const newCourse: Course = {
       id: course?.id || `course-${Date.now()}`,
       sessions: course?.sessions || [],
-      ...formData
+      ...finalFormData
     };
     
     onSave(newCourse);

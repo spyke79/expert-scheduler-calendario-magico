@@ -26,9 +26,16 @@ export interface Project {
   name: string;
   year: number;
   type: string;
-  documents: any[];
+  documents: ProjectDocument[];
   totalCourses: number;
   courses: Course[];
+}
+
+export interface ProjectDocument {
+  id: string;
+  name: string;
+  url: string;
+  uploadedAt: string;
 }
 
 export interface Course {
