@@ -1,61 +1,11 @@
 
+// School Types
 export interface SchoolLocation {
   name: string;
   address: string;
   managerName: string;
   managerPhone: string;
   mapLink?: string;
-}
-
-export interface ProjectDocument {
-  id: string;
-  name: string;
-  url: string;
-  uploadedAt: string;
-}
-
-export interface CourseSession {
-  id: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  hours: number;
-}
-
-export interface Expert {
-  id: string;
-  name: string;
-  hourlyRate?: number;
-}
-
-export interface Tutor {
-  name: string;
-  phone: string;
-}
-
-export interface Course {
-  id: string;
-  title: string;
-  description: string;
-  projectId?: string;
-  projectName: string;
-  schoolId?: string;
-  schoolName: string;
-  location: string;
-  totalHours: number;
-  experts: Expert[];
-  tutors: Tutor[];
-  sessions: CourseSession[];
-}
-
-export interface Project {
-  id: string;
-  name: string;
-  year: number;
-  type: string;
-  documents: ProjectDocument[];
-  totalCourses: number;
-  courses: Course[];
 }
 
 export interface School {
@@ -69,4 +19,52 @@ export interface School {
   mapLink?: string;
   secondaryLocations: SchoolLocation[];
   projects: Project[];
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  year: number;
+  type: string;
+  documents: any[];
+  totalCourses: number;
+  courses: Course[];
+}
+
+export interface Course {
+  id: string;
+  title: string;
+  description: string;
+  projectId: string;
+  projectName: string;
+  schoolId: string;
+  schoolName: string;
+  location: string;
+  totalHours: number;
+  experts: Expert[];
+  tutors: Tutor[];
+  sessions: CourseSession[];
+  startDate?: string;
+  endDate?: string;
+  remainingHours?: number;
+  hourlyRate?: number;
+}
+
+export interface Expert {
+  id: string;
+  name: string;
+  hourlyRate?: number;
+}
+
+export interface Tutor {
+  name: string;
+  phone: string;
+}
+
+export interface CourseSession {
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  hours: number;
 }
