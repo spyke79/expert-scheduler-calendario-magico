@@ -5,7 +5,7 @@ import { ExpertsService } from './experts';
 import { CoursesService } from './courses';
 import { School, Course, CourseSession } from '@/types/schools';
 
-// Classe DatabaseService che utilizzerà i servizi specifici
+// Main Database Service class that manages all specific services
 class DatabaseService {
   private static instance: DatabaseService;
   private connection = DatabaseConnection.getInstance();
@@ -22,17 +22,28 @@ class DatabaseService {
     return DatabaseService.instance;
   }
 
-  // Metodo per impostare la configurazione del database
+  // Method to set DB configuration
   public setConfig(config: any): void {
     this.connection.setConfig(config);
   }
 
-  // Inizializzazione del database
+  // Initialize the database
   public async init(): Promise<void> {
-    await this.connection.init();
+    try {
+      // Try to load existing database from localStorage first
+      const loaded = await this.connection.loadFromLocalStorage();
+      if (!loaded) {
+        // If no existing database, initialize a new one
+        await this.connection.init();
+      }
+    } catch (error) {
+      console.error("Error initializing database:", error);
+      // If there's an error loading from localStorage, try a fresh init
+      await this.connection.init();
+    }
   }
 
-  // --- Metodi relativi alle scuole
+  // --- School related methods
   public async getSchools(): Promise<School[]> {
     return this.schoolsService.getSchools();
   }
@@ -49,7 +60,7 @@ class DatabaseService {
     return this.schoolsService.deleteSchool(schoolId);
   }
 
-  // --- Metodi relativi agli esperti
+  // --- Expert related methods
   public async getExperts(): Promise<any[]> {
     return this.expertsService.getExperts();
   }
@@ -66,7 +77,7 @@ class DatabaseService {
     return this.expertsService.deleteExpert(expertId);
   }
 
-  // --- Metodi relativi ai corsi
+  // --- Course related methods
   public async getCourses(): Promise<any[]> {
     return this.coursesService.getCourses();
   }

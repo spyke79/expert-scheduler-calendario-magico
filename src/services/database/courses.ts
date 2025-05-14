@@ -6,9 +6,7 @@ export class CoursesService {
   private db = DatabaseConnection.getInstance();
 
   async getCourses(): Promise<any[]> {
-    const connection = await this.db.getConnection();
-
-    const [courseRows]: any = await connection.execute('SELECT * FROM courses');
+    const courseRows = await this.db.execute('SELECT * FROM courses');
     
     if (courseRows.length === 0) {
       return [];
@@ -18,25 +16,22 @@ export class CoursesService {
     for (const row of courseRows) {
       const courseId = row.id;
       
-      // Otteniamo le sessioni del corso
-      const [sessionRows]: any = await connection.execute(`
+      // Get sessions for this course
+      const sessionRows = await this.db.execute(`
         SELECT * FROM course_sessions WHERE courseId = ?
       `, [courseId]);
       
       const sessions: CourseSession[] = [];
-      if (sessionRows.length > 0) {
-        for (const sessionRow of sessionRows) {
-          sessions.push({
-            id: sessionRow.id,
-            date: sessionRow.date.toISOString().split('T')[0],
-            startTime: sessionRow.startTime.slice(0, 5),
-            endTime: sessionRow.endTime.slice(0, 5),
-            hours: sessionRow.hours,
-          });
-        }
+      for (const sessionRow of sessionRows) {
+        sessions.push({
+          id: sessionRow.id,
+          date: sessionRow.date,
+          startTime: sessionRow.startTime,
+          endTime: sessionRow.endTime,
+          hours: sessionRow.hours,
+        });
       }
       
-      // Create course with the new structure
       courses.push({
         id: courseId,
         title: row.title,
@@ -56,8 +51,8 @@ export class CoursesService {
           name: row.tutorName, 
           phone: row.tutorPhone 
         }],
-        startDate: row.startDate ? row.startDate.toISOString().split('T')[0] : null,
-        endDate: row.endDate ? row.endDate.toISOString().split('T')[0] : null,
+        startDate: row.startDate,
+        endDate: row.endDate,
         remainingHours: row.remainingHours,
         hourlyRate: row.hourlyRate,
         sessions,
@@ -68,15 +63,13 @@ export class CoursesService {
   }
 
   async addCourse(course: any): Promise<any> {
-    const connection = await this.db.getConnection();
-
     const courseId = course.id || `course-${Date.now()}`;
     
-    // Get the primary expert and tutor if using the new structure
+    // Get primary expert and tutor
     const primaryExpert = course.experts && course.experts.length > 0 ? course.experts[0] : null;
     const primaryTutor = course.tutors && course.tutors.length > 0 ? course.tutors[0] : null;
     
-    await connection.execute(`
+    await this.db.execute(`
       INSERT INTO courses (
         id, title, description, projectId, projectName, schoolId, schoolName, 
         location, totalHours, expertId, expertName, tutorName, tutorPhone,
@@ -103,10 +96,13 @@ export class CoursesService {
       course.hourlyRate || 60
     ]);
 
-    // Aggiungiamo le sessioni
+    // Add sessions
     for (const session of course.sessions || []) {
       await this.addCourseSession(courseId, session);
     }
+
+    // Save to localStorage
+    DatabaseConnection.getInstance().saveToLocalStorage();
 
     return {
       ...course,
@@ -115,13 +111,11 @@ export class CoursesService {
   }
 
   async updateCourse(course: any): Promise<any> {
-    const connection = await this.db.getConnection();
-
-    // Get the primary expert and tutor if using the new structure
+    // Get primary expert and tutor
     const primaryExpert = course.experts && course.experts.length > 0 ? course.experts[0] : null;
     const primaryTutor = course.tutors && course.tutors.length > 0 ? course.tutors[0] : null;
 
-    await connection.execute(`
+    await this.db.execute(`
       UPDATE courses 
       SET title = ?, 
           description = ?, 
@@ -160,21 +154,24 @@ export class CoursesService {
       course.id
     ]);
 
+    // Save to localStorage
+    DatabaseConnection.getInstance().saveToLocalStorage();
+
     return course;
   }
 
   async deleteCourse(courseId: string): Promise<void> {
-    const connection = await this.db.getConnection();
-    // MySQL cascade delete handles child tables
-    await connection.execute(`DELETE FROM courses WHERE id = ?`, [courseId]);
+    await this.db.execute(`DELETE FROM course_sessions WHERE courseId = ?`, [courseId]);
+    await this.db.execute(`DELETE FROM courses WHERE id = ?`, [courseId]);
+    
+    // Save to localStorage
+    DatabaseConnection.getInstance().saveToLocalStorage();
   }
 
   async addCourseSession(courseId: string, session: CourseSession): Promise<CourseSession> {
-    const connection = await this.db.getConnection();
-
     const sessionId = session.id || `session-${Date.now()}`;
     
-    await connection.execute(`
+    await this.db.execute(`
       INSERT INTO course_sessions (id, courseId, date, startTime, endTime, hours)
       VALUES (?, ?, ?, ?, ?, ?)
     `, [
@@ -186,12 +183,15 @@ export class CoursesService {
       session.hours
     ]);
 
-    // Aggiorniamo le ore rimanenti del corso
-    await connection.execute(`
+    // Update remaining hours
+    await this.db.execute(`
       UPDATE courses 
       SET remainingHours = remainingHours - ?
       WHERE id = ?
     `, [session.hours, courseId]);
+
+    // Save to localStorage
+    DatabaseConnection.getInstance().saveToLocalStorage();
 
     return {
       ...session,
@@ -200,20 +200,18 @@ export class CoursesService {
   }
 
   async updateCourseSession(session: CourseSession, courseId: string): Promise<CourseSession> {
-    const connection = await this.db.getConnection();
-
-    // Otteniamo le ore attuali della sessione
-    const [rows]: any = await connection.execute(`
+    // Get current session hours
+    const currentSession = await this.db.execute(`
       SELECT hours FROM course_sessions WHERE id = ?
     `, [session.id]);
     
-    if (rows.length === 0) {
-      throw new Error('Sessione non trovata');
+    if (currentSession.length === 0) {
+      throw new Error('Session not found');
     }
     
-    const currentHours = rows[0].hours;
+    const currentHours = currentSession[0].hours;
     
-    await connection.execute(`
+    await this.db.execute(`
       UPDATE course_sessions 
       SET date = ?, 
           startTime = ?, 
@@ -228,38 +226,42 @@ export class CoursesService {
       session.id
     ]);
 
-    // Aggiorniamo le ore rimanenti del corso
-    await connection.execute(`
+    // Update remaining hours
+    await this.db.execute(`
       UPDATE courses 
       SET remainingHours = remainingHours - ? + ?
       WHERE id = ?
     `, [session.hours, currentHours, courseId]);
 
+    // Save to localStorage
+    DatabaseConnection.getInstance().saveToLocalStorage();
+
     return session;
   }
 
   async deleteCourseSession(sessionId: string, courseId: string): Promise<void> {
-    const connection = await this.db.getConnection();
-
-    // Otteniamo le ore della sessione
-    const [rows]: any = await connection.execute(`
+    // Get session hours
+    const session = await this.db.execute(`
       SELECT hours FROM course_sessions WHERE id = ?
     `, [sessionId]);
     
-    if (rows.length === 0) {
-      throw new Error('Sessione non trovata');
+    if (session.length === 0) {
+      throw new Error('Session not found');
     }
     
-    const hours = rows[0].hours;
+    const hours = session[0].hours;
     
-    // Eliminiamo la sessione
-    await connection.execute(`DELETE FROM course_sessions WHERE id = ?`, [sessionId]);
+    // Delete session
+    await this.db.execute(`DELETE FROM course_sessions WHERE id = ?`, [sessionId]);
     
-    // Aggiorniamo le ore rimanenti del corso
-    await connection.execute(`
+    // Update remaining hours
+    await this.db.execute(`
       UPDATE courses 
       SET remainingHours = remainingHours + ?
       WHERE id = ?
     `, [hours, courseId]);
+
+    // Save to localStorage
+    DatabaseConnection.getInstance().saveToLocalStorage();
   }
 }
